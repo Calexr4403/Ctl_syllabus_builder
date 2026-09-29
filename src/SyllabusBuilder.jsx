@@ -232,6 +232,7 @@ const Note = ({ children }) => (
 
 export default function SyllabusBuilder() {
   const [d, setD] = useState(blank);
+  // adds a warning before the user leaves the page changes will not be saved.
   const hasUnsavedChanges = JSON.stringify(d) !== JSON.stringify(blank);
 
   useEffect(() => {
