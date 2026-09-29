@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   BookOpen, User, MessageSquare, Target, Library, Scale, Gavel,
   ShieldCheck, CalendarDays, FileDown, Check, AlertTriangle, Plus, Trash2,
@@ -232,6 +232,19 @@ const Note = ({ children }) => (
 
 export default function SyllabusBuilder() {
   const [d, setD] = useState(blank);
+  const hasUnsavedChanges = JSON.stringify(d) !== JSON.stringify(blank);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedChanges]);
   const [tab, setTab] = useState(0);
   const fileRef = useRef(null);
   const frameRef = useRef(null);
