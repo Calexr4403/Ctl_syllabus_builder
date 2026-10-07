@@ -105,6 +105,29 @@ Ask. If you have questions about how to use a tool for a particular task, come t
   custom: { label: "Write my own", text: "" },
 };
 
+const LATE_POLICIES = [
+  {
+    label: "Grace period",
+    text: "Assignments may be submitted up to 48 hours after the deadline without penalty. After the grace period, late work is not accepted unless an extension has been arranged with the instructor. Contact me as early as possible if you need additional time.",
+  },
+  {
+    label: "Daily late penalty",
+    text: "Late assignments lose 10 percentage points per calendar day, up to five days after the deadline. Work submitted more than five days late is not accepted. Contact me before the deadline if circumstances may affect your ability to submit on time.",
+  },
+  {
+    label: "Extensions by request",
+    text: "You may request an extension before an assignment deadline. Include the assignment name and the amount of additional time you need; I will confirm a revised due date. Please contact me as early as you can so we can make a plan.",
+  },
+  {
+    label: "Make-up work for excused absences",
+    text: "Students who miss an exam or assignment because of an excused absence should contact me as soon as possible to arrange make-up work. We will agree on a reasonable completion date. For planned absences, please reach out in advance whenever possible.",
+  },
+  {
+    label: "Late assignments and make-up exams",
+    text: "Assignments may be submitted up to seven days late with a 10 percent penalty per day. Make-up exams are available for excused absences; contact me promptly to arrange a time. If you anticipate missing a deadline or exam, please get in touch as early as possible.",
+  },
+];
+
 const LOCKED = {
   integrity: {
     title: "Academic Integrity",
@@ -185,7 +208,7 @@ const blank = {
   texts: "", costNote: "", tech: "",
   items: [{ name: "", weight: "", desc: "", slos: [] }],
   scale: "A 90 to 100  ·  B 80 to 89  ·  C 70 to 79  ·  D 60 to 69  ·  F below 60",
-  attendance: "", late: "", participation: "",
+  attendance: "", late: "", lateSample: "", lateAdditional: [], participation: "",
   aiTier: "mixed", aiCustom: "", profNote: "",
   inc: { integrity: true, accessibility: true, support: true, crisis: true, changes: true },
   weeks: [{ label: "Week 1", dates: "", topics: "", due: "" }],
@@ -250,6 +273,8 @@ export default function SyllabusBuilder() {
   const unmapped = realOutcomes.map((_, i) => i).filter((i) => !mappedSlos.has(i));
 
   const aiText = d.aiTier === "custom" ? d.aiCustom : AI_POLICIES[d.aiTier].text;
+  const lateText = [d.late, ...d.lateAdditional.map((policy) => policy.text)]
+    .filter((text) => text.trim()).join("\n\n");
 
   /* ---------- readiness ---------- */
   const checks = [
@@ -266,7 +291,7 @@ export default function SyllabusBuilder() {
     ["Assessment weights total 100 percent", Math.abs(weightTotal - 100) < 0.01],
     ["Grading scale", !!d.scale],
     ["Attendance policy", !!d.attendance],
-    ["Late work and make-up policy", !!d.late],
+    ["Late work and make-up policy", !!lateText],
     ["AI policy (required by UTM policy)", !!aiText.trim()],
     ["Accessibility statement included", d.inc.accessibility],
     ["Academic integrity included", d.inc.integrity],
@@ -346,7 +371,7 @@ export default function SyllabusBuilder() {
     const pol = [];
     if (d.attendance) pol.push(["Attendance and Participation", d.attendance]);
     if (d.participation) pol.push(["What Engagement Looks Like Here", d.participation]);
-    if (d.late) pol.push(["Late Work and Make-Up Policy", d.late]);
+    if (lateText) pol.push(["Late Work and Make-Up Policy", lateText]);
     if (d.subjectLine || d.responseTime || d.address)
       pol.push(["Reaching Me", [
         d.subjectLine && `Use this subject line on every email: ${d.subjectLine}`,
@@ -632,7 +657,34 @@ export default function SyllabusBuilder() {
             <H>Course Policies</H>
             <Field label="Attendance"><A rows={3} value={d.attendance} onChange={(v) => set("attendance", v)} placeholder="Say what counts as present, what happens after an absence, and who to tell." /></Field>
             <Field label="What engagement looks like here" hint="optional, but it removes a lot of guesswork"><A rows={3} value={d.participation} onChange={(v) => set("participation", v)} placeholder="Merely showing up and sitting through the class is not participation. Asking questions during Q and A, contributing to project discussions, and showing up to team meetings all count." /></Field>
-            <Field label="Late work and make-up"><A rows={3} value={d.late} onChange={(v) => set("late", v)} placeholder="All assignments except exams can be made up with a 30 percent late penalty. Exams cannot be made up except for documented emergencies. Reach out before the deadline, not after." /></Field>
+            <Field label="Late work and make-up" hint="choose a sample, then edit as needed">
+              <select value={d.lateSample} onChange={(e) => {
+                const sample = LATE_POLICIES.find((policy) => policy.label === e.target.value);
+                set("lateSample", e.target.value);
+                set("late", sample?.text || "");
+              }} style={{ ...inputBase, marginBottom: 8 }}>
+                <option value="">Choose a sample policy...</option>
+                {LATE_POLICIES.map((policy) => <option key={policy.label} value={policy.label}>{policy.label}</option>)}
+              </select>
+              <A rows={3} value={d.late} onChange={(v) => set("late", v)} placeholder="Describe your late work deadlines, penalties, extensions, and make-up arrangements." />
+            </Field>
+            {d.lateAdditional.map((policy, i) => (
+              <Field key={i} label={`Additional policy`} hint="choose a sample, then edit as needed">
+                <select value={policy.sample} onChange={(e) => {
+                  const sample = LATE_POLICIES.find((option) => option.label === e.target.value);
+                  setDeep("lateAdditional", i, "sample", e.target.value);
+                  setDeep("lateAdditional", i, "text", sample?.text || "");
+                }} style={{ ...inputBase, marginBottom: 8 }}>
+                  <option value="">Choose a sample policy...</option>
+                  {LATE_POLICIES.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
+                </select>
+                <A rows={3} value={policy.text} onChange={(v) => setDeep("lateAdditional", i, "text", v)} placeholder="Describe an additional late work or make-up arrangement." />
+                <div className="flex justify-end mt-2">
+                  <Btn onClick={() => drop("lateAdditional", i)} icon={Trash2}>Remove policy</Btn>
+                </div>
+              </Field>
+            ))}
+            <Btn onClick={() => push("lateAdditional", { sample: "", text: "" })} icon={Plus}>Add another policy</Btn>
 
             <div className="mt-6 mb-2" style={{ color: C.navy, fontWeight: "bold", fontSize: 14 }}>Artificial Intelligence Policy</div>
             <Note>UTM's AI policy, effective July 1, 2025, requires every syllabus to state your expectations for student AI use. This is not optional, so pick a tier below. The three tiers match the policy: unrestricted, mixed, and total prohibition.</Note>
