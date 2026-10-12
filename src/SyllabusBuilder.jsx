@@ -681,15 +681,14 @@ export default function SyllabusBuilder() {
                 <option value="">Please select a sample attendance policy, then edit it to fit your course</option>
                 {[
                   ["Graded",
-                    `Attendance in this course means that you will be present for all in-person class meetings. 
-                    Roll will be called/marked at the beginning of each class period. If you are not present during roll call, it is 
-                    your responsibility to see the professor after class so that you may be marked tardy; otherwise you will be marked
-                    absent for the day.
-                    
-                    If you need to miss class for a valid reason (school events, family matters, appointmnets, etc.) you must notify
-                    the professor in advance of your absence, or as near as possible to the class period in the event of emergencies.
-                    You need not be deailed, a simple "I am out sick today" will suffice!`
-                  ],
+                    "Attendance in this course means that you will be present for all in-person class meetings.", 
+                    "Roll will be called/marked at the beginning of each class period. If you are not present during roll call, it is", 
+                    "your responsibility to see the professor after class so that you may be marked tardy; otherwise you will be marked",
+                    "absent for the day.\n\n", // Keeps the double line break for the next paragraph
+                    "If you need to miss class for a valid reason (school events, family matters, appointmnets, etc.) you must notify",
+                    "the professor in advance of your absence, or as near as possible to the class period in the event of emergencies.",
+                    "You need not be deailed, a simple 'I am out sick today' will suffice!"
+                  ].join(" ")
                   ["Flexible",
                     `Your attendance is beneficial at all scheduled sessions. It's where new introductions to materials will take place,
                     and group activities will facilitate learning. 
