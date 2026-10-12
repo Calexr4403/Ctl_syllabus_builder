@@ -672,7 +672,34 @@ export default function SyllabusBuilder() {
 
           {tab === 6 && (<>
             <H>Course Policies</H>
-            <Field label="Attendance"><A rows={3} value={d.attendance} onChange={(v) => set("attendance", v)} placeholder="Say what counts as present, what happens after an absence, and who to tell." /></Field>
+            <Field label="Attendance" hint="Please pick a starting point, then edit it to fit your course">
+              <select
+                style={{ ...inputBase, marginBottom: 8 }}
+                value={d.attendance}
+                onChange={(e) => set("attendance", e.target.value)}
+              >
+                <option value="">Choose a sample attendance policy...</option>
+                {[
+                  ["Graded - absences carry a penalty",
+                    'Attendance is recorded....'],
+                  ["Folded into participation",
+                    'This course runs on discussion...'],
+                  ["Flexible - no penalty",
+                    'Attendance is expected...'],
+                  ["Online or asynchronous",
+                    'This course has no fixed meeting time, so attendance...'],
+                ].map(([label, text]) => (
+                  <option key={label} value={text}>{label}</option>
+                ))}
+              </select>
+
+              <A
+                rows={8}
+                value={d.attendance}
+                onChange={(v) => set("attendance", v)}
+                placeholder="Say what counts as present, what happens after an absence, and who to tell."
+              />
+            </Field> 
             <Field label="What engagement looks like here" hint="optional, but it removes a lot of guesswork"><A rows={3} value={d.participation} onChange={(v) => set("participation", v)} placeholder="Merely showing up and sitting through the class is not participation. Asking questions during Q and A, contributing to project discussions, and showing up to team meetings all count." /></Field>
             <Field label="Late work and make-up"><A rows={3} value={d.late} onChange={(v) => set("late", v)} placeholder="All assignments except exams can be made up with a 30 percent late penalty. Exams cannot be made up except for documented emergencies. Reach out before the deadline, not after." /></Field>
 
