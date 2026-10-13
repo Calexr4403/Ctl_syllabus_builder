@@ -675,35 +675,29 @@ export default function SyllabusBuilder() {
             <Field label="Attendance">
               <select
                 style={{ ...inputBase, marginBottom: 8 }}
-                value={d.attendance}
-                onChange={(e) => set("attendance", e.target.value)}
+                value=""
+                onChange={(e) => {
+                  const text = e.target.value;
+                  if (!text) return;
+                  if (
+                    d.attendance.trim() &&
+                    !window.confirm("Replace your current attendance policy?")
+                  ) {
+                    return;
+                  }
+                  set("attendance", text);
+                }}
               >
                 <option value="">Please select a sample attendance policy, then edit it to fit your course</option>
                 {[
                   ["Graded",
-                    "Attendance in this course means that you will be present for all in-person class meetings.", 
-                    "Roll will be called/marked at the beginning of each class period. If you are not present during roll call, it is", 
-                    "your responsibility to see the professor after class so that you may be marked tardy; otherwise you will be marked",
-                    "absent for the day.\n\n", // Keeps the double line break for the next paragraph
-                    "If you need to miss class for a valid reason (school events, family matters, appointmnets, etc.) you must notify",
-                    "the professor in advance of your absence, or as near as possible to the class period in the event of emergencies.",
-                    "You need not be deailed, a simple 'I am out sick today' will suffice!"
-                  ].join(" ")
+                    'Attendance in this course means that you will be present for all in-person class meetings. Roll will be called/marked at the beginning of each class period. If you are not present during roll call, it is your responsibility to see the professor after class so that you may be marked tardy; otherwise, you will be marked absent for the day. If you need to miss class for a valid reason (school events, family matters, appointments, etc.) you must notify the professor in advance of your absence, or as near as possible to the class period in the event of emergencies. You need not be detailed, a simple "I am out sick today" will suffice!'
+                  ],
                   ["Flexible",
-                    `Your attendance is beneficial at all scheduled sessions. It's where new introductions to materials will take place,
-                    and group activities will facilitate learning. 
-                    
-                    I understand that life happens and you may not be able to attend every class. Therefore, MWF sections have 3 free
-                    absences throughout the semester. T/TH sections have 2 free absences. This includes excused absences.`
+                    `Your attendance is beneficial at all scheduled sessions. It's where new introductions to materials will take place, and group activities will facilitate learning. I understand that life happens and you may not be able to attend every class. Therefore, MWF sections have 3 free absences throughout the semester. T/TH sections have 2 free absences. This includes excused absences.`
                   ],
                   ["Online",
-                    `This course has no fixed meeting time, so attendance is measured by your activity in Canvas rather than by your
-                    presence in a room. You are counted present in a given week if you have submitted that week's work, posted to the
-                    discussion board, or otherwise engaged with the week's module by the Sunday deadline.
-                    
-                    Two consecutive weeks with no Canvas activity will trigger an outreach from me and may be reported to Student Success
-                    as a retention concern. Federal financial aid regulations also require that we document academically related 
-                    activity.`
+                    `This course has no fixed meeting time, so attendance is measured by your activity in Canvas rather than by your presence in a room. You are counted present in a given week if you have submitted that week's work, posted to the discussion board, or otherwise engaged with the week's module by the Sunday deadline. Two consecutive weeks with no Canvas activity will trigger an outreach from me and may be reported to Student Success as a retention concern. Federal financial aid regulations also require that we document academically related activity.`
                   ],
                 ].map(([label, text]) => (
                   <option key={label} value={text}>{label}</option>
