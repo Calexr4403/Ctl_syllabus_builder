@@ -262,7 +262,7 @@ export default function SyllabusBuilder() {
     ["Why this course matters, in your voice", !!d.welcome],
     ["At least three learning outcomes", realOutcomes.length >= 3],
     ["Every outcome tied to an assessment", realOutcomes.length > 0 && unmapped.length === 0],
-    ["Required materials listed", !!d.texts],
+    ["Required materials listed", !!(d.texts || d.materials.provided || d.materials.hardcopy || d.materials.online || d.materials.acquire)],
     ["Assessment weights total 100 percent", Math.abs(weightTotal - 100) < 0.01],
     ["Grading scale", !!d.scale],
     ["Attendance policy", !!d.attendance],
@@ -325,10 +325,21 @@ export default function SyllabusBuilder() {
       }
     }
 
-        if (d.texts || d.costNote || d.tech) {
+            const m = d.materials;
+    const hasAccess = m.provided || m.hardcopy || m.online || m.acquire;
+    if (d.texts || d.costNote || d.tech || hasAccess) {
       sec("Required Materials");
       if (d.texts) h.push(para(d.texts));
       if (d.costNote) h.push(`<p class="soft">${esc(d.costNote)}</p>`);
+      if (hasAccess) {
+        const lines = [];
+        if (m.provided) lines.push("These materials will be provided to you at no additional cost.");
+        const fmt = m.hardcopy && m.online ? "both hardcopy and online"
+          : m.hardcopy ? "hardcopy" : m.online ? "online" : "";
+        if (fmt) lines.push(`Format: available in ${fmt}.`);
+        if (m.acquire) lines.push(`Where to acquire: ${m.acquire}`);
+        h.push(`<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`);
+      }
       if (d.tech) { h.push(`<h3>Technology you will need</h3>`); h.push(para(d.tech)); }
     }
   
