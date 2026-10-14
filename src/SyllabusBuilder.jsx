@@ -183,7 +183,6 @@ const blank = {
   description: "", welcome: "",
   showPrimer: true, outcomes: [""],
   texts: "", costNote: "", tech: "",
-  materials: { provided: false, hardcopy: false, online: false, acquire: "" },
   items: [{ name: "", weight: "", desc: "", slos: [] }],
   scale: "A 90 to 100  ·  B 80 to 89  ·  C 70 to 79  ·  D 60 to 69  ·  F below 60",
   attendance: "", late: "", participation: "",
