@@ -331,7 +331,7 @@ export default function SyllabusBuilder() {
       if (d.costNote) h.push(`<p class="soft">${esc(d.costNote)}</p>`);
       if (d.tech) { h.push(`<h3>Technology you will need</h3>`); h.push(para(d.tech)); }
     }
-    }
+  
 
     const live = d.items.filter((x) => x.name);
     if (live.length) {
