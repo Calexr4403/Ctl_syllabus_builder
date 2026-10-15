@@ -194,6 +194,7 @@ const blank = {
 
 /* ---------- small UI atoms ---------- */
 
+/** Renders an uppercase field label and an optional hint. */
 const Lbl = ({ children, hint }) => (
   <div className="mb-1">
     <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: C.slate }}>{children}</span>
@@ -207,20 +208,24 @@ const inputBase = {
   fontSize: 14, color: C.ink, background: "#fff", outline: "none",
 };
 
+/** Renders a controlled single-line text input using the builder's shared styling. */
 const T = ({ value, onChange, placeholder, mono }) => (
   <input style={{ ...inputBase, fontFamily: mono ? "ui-monospace, monospace" : inputBase.fontFamily }}
     value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
 );
 
+/** Renders a controlled multi-line text input using the builder's shared styling. */
 const A = ({ value, onChange, placeholder, rows = 4 }) => (
   <textarea style={{ ...inputBase, resize: "vertical", lineHeight: 1.5 }} rows={rows}
     value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
 );
 
+/** Groups a label, hint, and form control into one consistent field. */
 const Field = ({ label, hint, children }) => (
   <div className="mb-4"><Lbl hint={hint}>{label}</Lbl>{children}</div>
 );
 
+/** Displays instructional text without adding it to the exported syllabus. */
 const Note = ({ children }) => (
   <div className="flex gap-2 p-3 mb-4 rounded text-sm" style={{ background: "#F0F5FA", color: C.slate, lineHeight: 1.55 }}>
     <Info size={15} style={{ color: C.navy, flexShrink: 0, marginTop: 2 }} />
@@ -230,15 +235,23 @@ const Note = ({ children }) => (
 
 /* ============================================================ */
 
+/**
+ * Builds the syllabus editor, live preview, readiness checklist, and export actions.
+ * The component keeps all draft data in local React state and passes that state to
+ * the document builder so the preview and downloaded files always match.
+ */
 export default function SyllabusBuilder() {
   const [d, setD] = useState(blank);
   const [tab, setTab] = useState(0);
   const fileRef = useRef(null);
   const frameRef = useRef(null);
 
+  // Update one top-level syllabus field while preserving the rest of the draft.
   const set = (k, v) => setD((p) => ({ ...p, [k]: v }));
+  // Update one property inside a repeated array item, such as an assignment or week.
   const setDeep = (k, i, key, v) =>
     setD((p) => { const a = [...p[k]]; a[i] = { ...a[i], [key]: v }; return { ...p, [k]: a }; });
+  // Add or remove one item from a repeated syllabus section.
   const push = (k, obj) => setD((p) => ({ ...p, [k]: [...p[k], obj] }));
   const drop = (k, i) => setD((p) => ({ ...p, [k]: p[k].filter((_, j) => j !== i) }));
 
@@ -251,7 +264,7 @@ export default function SyllabusBuilder() {
 
   const aiText = d.aiTier === "custom" ? d.aiCustom : AI_POLICIES[d.aiTier].text;
 
-  /* ---------- readiness ---------- */
+  /* ---------- readiness: report whether required syllabus content is complete ---------- */
   const checks = [
     ["Course code, title, term, and credit hours", !!(d.code && d.title && d.term && d.credits)],
     ["Meeting time and modality stated", !!(d.modality && (d.modality.startsWith("Online") || d.meeting))],
@@ -275,7 +288,7 @@ export default function SyllabusBuilder() {
   ];
   const passed = checks.filter((c) => c[1]).length;
 
-  /* ---------- document builder: one source of truth ---------- */
+  /* ---------- document builder: create the HTML shared by preview and exports ---------- */
 
   const esc = (s = "") => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const para = (s = "") => esc(s).split(/\n{2,}/).map((p) =>
@@ -420,20 +433,25 @@ export default function SyllabusBuilder() {
      <style>@page{size:8.5in 11in;margin:0.8in}${DOC_CSS}</style></head>
      <body><div class="page">${docBody}</div></body></html>`;
 
+  /** Downloads a generated browser Blob without sending it to a server. */
   const dl = (blob, name) => {
     const u = URL.createObjectURL(blob); const a = document.createElement("a");
     a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000);
   };
   const fname = (ext) => `${(d.code || "Syllabus").replace(/\s+/g, "_")}_${d.term.replace(/\s+/g, "_")}.${ext}`;
 
+  /** Downloads the current syllabus as an editable Word-compatible HTML document. */
   const exportWord = () => dl(new Blob(["\ufeff" + fullHtml()], { type: "application/msword" }), fname("doc"));
+  /** Opens the browser print dialog with the current syllabus formatted for PDF output. */
   const exportPdf = () => {
     const f = frameRef.current; if (!f) return;
     const doc = f.contentWindow.document;
     doc.open(); doc.write(fullHtml()); doc.close();
     setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); }, 250);
   };
+  /** Downloads the current draft as JSON so the user can continue it later. */
   const saveJson = () => dl(new Blob([JSON.stringify(d, null, 2)], { type: "application/json" }), fname("json"));
+  /** Reads a user-selected JSON draft and merges it with defaults for compatibility. */
   const loadJson = (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     const r = new FileReader();
@@ -449,6 +467,7 @@ export default function SyllabusBuilder() {
     { n: "Export", i: FileDown },
   ];
 
+  /** Renders a consistently styled action button with an optional icon. */
   const Btn = ({ onClick, children, icon: I, primary }) => (
     <button onClick={onClick} className="flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold"
       style={{ background: primary ? C.navy : "#fff", color: primary ? "#fff" : C.navy,
@@ -457,6 +476,7 @@ export default function SyllabusBuilder() {
     </button>
   );
 
+  /* ---------- editor layout: navigation, form controls, and matching live preview ---------- */
   return (
     <div style={{ fontFamily: "Cambria, Georgia, serif", background: C.wash, minHeight: "100vh" }}>
       <iframe ref={frameRef} title="print" style={{ position: "fixed", width: 0, height: 0, border: 0, left: -9999 }} />
@@ -733,6 +753,7 @@ export default function SyllabusBuilder() {
   );
 }
 
+/** Renders the orange-underlined heading used at the top of each editor section. */
 function H({ children }) {
   return <div style={{ color: C.navy, fontWeight: "bold", fontSize: 17, marginBottom: 12,
     borderBottom: `2px solid ${C.orange}`, paddingBottom: 6, display: "inline-block" }}>{children}</div>;
