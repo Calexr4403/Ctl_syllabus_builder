@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   BookOpen, User, MessageSquare, Target, Library, Scale, Gavel,
   ShieldCheck, CalendarDays, FileDown, Check, AlertTriangle, Plus, Trash2,
-  Save, Upload, Printer, Lock, Info, ChevronRight
+  Save, Upload, Printer, Lock, Info, ChevronRight, Maximize2, Minimize2
 } from "lucide-react";
 
 /* ============================================================
@@ -256,8 +256,18 @@ const Note = ({ children }) => (
 export default function SyllabusBuilder() {
   const [d, setD] = useState(blank);
   const [tab, setTab] = useState(0);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const fileRef = useRef(null);
   const frameRef = useRef(null);
+
+  useEffect(() => {
+    if (!previewFullscreen) return;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setPreviewFullscreen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewFullscreen]);
 
   const set = (k, v) => setD((p) => ({ ...p, [k]: v }));
   const setDeep = (k, i, key, v) =>
@@ -768,14 +778,41 @@ export default function SyllabusBuilder() {
         </div>
 
         {/* preview */}
-        <div className="p-5" style={{ flex: "1 1 460px", minWidth: 360 }}>
-          <div className="flex items-center gap-2 mb-2" style={{ color: C.slate, fontSize: 12, letterSpacing: 1 }}>
-            <ChevronRight size={13} style={{ color: C.orange }} />THIS IS EXACTLY WHAT EXPORTS
+        <div className={previewFullscreen ? "" : "p-5"} style={previewFullscreen
+          ? { position: "fixed", inset: 0, zIndex: 1000, display: "flex", flexDirection: "column", background: C.wash }
+          : { flex: "1 1 460px", minWidth: 360 }}>
+          <div className="flex items-center justify-between gap-3 mb-2" style={{
+            color: C.slate, fontSize: 12, letterSpacing: 1,
+            ...(previewFullscreen ? { background: "#fff", borderBottom: `1px solid ${C.line}`, padding: "12px 20px", marginBottom: 0 } : {}),
+          }}>
+            <div className="flex items-center gap-2">
+              <ChevronRight size={13} style={{ color: C.orange }} />THIS IS EXACTLY WHAT EXPORTS
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreviewFullscreen((fullscreen) => !fullscreen)}
+              aria-label={previewFullscreen ? "Exit fullscreen preview" : "Open fullscreen preview"}
+              aria-pressed={previewFullscreen}
+              title={previewFullscreen ? "Exit fullscreen (Esc)" : "Open fullscreen preview"}
+              className="flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold"
+              style={{ background: "#fff", color: C.navy, border: `1px solid ${C.line}`, cursor: "pointer", letterSpacing: 0 }}
+            >
+              {previewFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              {previewFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            </button>
           </div>
-          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 3, padding: "34px 40px",
-            maxHeight: "calc(100vh - 130px)", overflow: "auto", boxShadow: "0 1px 4px rgba(11,34,64,.08)" }}>
-            <style>{DOC_CSS}</style>
-            <div dangerouslySetInnerHTML={{ __html: docBody || `<p class="soft">Start on the left. The document builds itself here.</p>` }} />
+          <div style={previewFullscreen
+            ? { flex: 1, minHeight: 0, overflow: "auto", padding: "24px clamp(16px, 5vw, 72px)" }
+            : {}}>
+            <div style={{
+              background: "#fff", border: `1px solid ${C.line}`, borderRadius: 3, padding: "34px 40px",
+              maxHeight: previewFullscreen ? "none" : "calc(100vh - 130px)", overflow: previewFullscreen ? "visible" : "auto",
+              boxShadow: "0 1px 4px rgba(11,34,64,.08)",
+              ...(previewFullscreen ? { maxWidth: 1100, minHeight: "100%", boxSizing: "border-box", margin: "0 auto" } : {}),
+            }}>
+              <style>{DOC_CSS}</style>
+              <div dangerouslySetInnerHTML={{ __html: docBody || `<p class="soft">Start on the left. The document builds itself here.</p>` }} />
+            </div>
           </div>
         </div>
       </div>
