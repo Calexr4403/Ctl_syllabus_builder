@@ -184,7 +184,7 @@ const blank = {
   description: "", welcome: "",
   showPrimer: true, outcomes: [""],
   texts: "", costNote: "", tech: "",
-  items: [{ name: "", weight: "", desc: "", slos: [] }],
+  items: [{ name: "", weight: "", due: "", desc: "", slos: [] }],
   scale: "A 90 to 100  ·  B 80 to 89  ·  C 70 to 79  ·  D 60 to 69  ·  F below 60",
   attendance: "", late: "", participation: "",
   aiTier: "mixed", aiCustom: "", profNote: "",
@@ -360,12 +360,13 @@ export default function SyllabusBuilder() {
 
     const live = d.items.filter((x) => x.name);
     if (live.length) {
+      const hasDueDates = live.some((x) => x.due?.trim());
       sec("Assessment and Grading");
-      h.push(`<table class="grid"><tr><th>Assignment</th><th class="w">Weight</th><th>What it is</th></tr>${
+      h.push(`<table class="grid"><tr><th>Assignment</th><th class="w">Weight</th>${hasDueDates ? '<th class="assignment-due">Due date</th>' : ""}<th>What it is</th></tr>${
         live.map((x) => `<tr><td><strong>${esc(x.name)}</strong>${
           x.slos.length ? `<div class="tag">Outcome${x.slos.length > 1 ? "s" : ""} ${x.slos.map((i) => i + 1).join(", ")}</div>` : ""
-        }</td><td class="w">${esc(x.weight)}%</td><td>${esc(x.desc)}</td></tr>`).join("")
-      }<tr class="tot"><td>Total</td><td class="w">${weightTotal}%</td><td></td></tr></table>`);
+        }</td><td class="w">${esc(x.weight)}%</td>${hasDueDates ? `<td class="assignment-due">${esc(x.due || "")}</td>` : ""}<td>${esc(x.desc)}</td></tr>`).join("")
+      }<tr class="tot"><td>Total</td><td class="w">${weightTotal}%</td>${hasDueDates ? "<td></td>" : ""}<td></td></tr></table>`);
       if (d.scale) { h.push(`<h3>Grading scale</h3>`); h.push(para(d.scale)); }
     }
 
@@ -456,6 +457,7 @@ export default function SyllabusBuilder() {
     .grid .w{width:70px;text-align:right}
     .grid .wk{width:110px}
     .grid .due{width:150px}
+    .grid .assignment-due{width:90px}
     .grid tr.tot td{background:#EEF2F7;font-weight:bold}
     .primer{border-left:4px solid ${C.orange};background:#FAFBFD;padding:10px 14px;margin:8px 0 14px;font-size:10pt}
     .primer-h{font-weight:bold;color:${C.navy};margin-bottom:6px}
@@ -638,9 +640,10 @@ export default function SyllabusBuilder() {
                 <div className="flex gap-2 mb-2">
                   <div style={{ flex: 3 }}><T value={x.name} onChange={(v) => setDeep("items", i, "name", v)} placeholder="Final paper" /></div>
                   <div style={{ flex: 1 }}><T mono value={x.weight} onChange={(v) => setDeep("items", i, "weight", v)} placeholder="%" /></div>
+                  <div style={{ flex: 1 }}><T value={x.due} onChange={(v) => setDeep("items", i, "due", v)} placeholder="Due date"/* added a due date text input that doesn't show up unless needed */ /></div>
                   <button onClick={() => drop("items", i)} style={{ color: "#9AA5B5", cursor: "pointer" }}><Trash2 size={15} /></button>
                 </div>
-                <A rows={2} value={x.desc} onChange={(v) => setDeep("items", i, "desc", v)} placeholder="What it is, how long, when it is due." />
+                <A rows={2} value={x.desc} onChange={(v) => setDeep("items", i, "desc", v)} placeholder="What it is and how long." />
                 {realOutcomes.length > 0 && (
                   <div className="mt-2">
                     <div style={{ fontSize: 11, color: C.slate, marginBottom: 4 }}>WHICH OUTCOMES DOES THIS PRODUCE EVIDENCE FOR?</div>
@@ -660,7 +663,7 @@ export default function SyllabusBuilder() {
                 )}
               </div>
             ))}
-            <Btn onClick={() => push("items", { name: "", weight: "", desc: "", slos: [] })} icon={Plus}>Add assignment</Btn>
+            <Btn onClick={() => push("items", { name: "", weight: "", due: "", desc: "", slos: [] })} icon={Plus}>Add assignment</Btn>
             {unmapped.length > 0 && (
               <div className="mt-4 p-3 rounded flex gap-2" style={{ background: "#FEF6E7", color: C.warn, fontSize: 13 }}>
                 <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2 }} />
