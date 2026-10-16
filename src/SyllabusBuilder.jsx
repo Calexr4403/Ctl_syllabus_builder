@@ -480,7 +480,7 @@ export default function SyllabusBuilder() {
 
   const fullHtml = () =>
     `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head>
-     <meta charset="utf-8"/><title>${esc(d.code)} Syllabus</title>
+    <meta charset="utf-8"/><title>${esc(pdfFilename())}</title>
      <style>@page{size:8.5in 11in;margin:0.8in}${DOC_CSS}</style></head>
      <body><div class="page">${docBody}</div></body></html>`;
 
@@ -489,12 +489,14 @@ export default function SyllabusBuilder() {
     a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 4000);
   };
   const fname = (ext) => `${(d.code || "Syllabus").replace(/\s+/g, "_")}_${d.term.replace(/\s+/g, "_")}.${ext}`;
+  const pdfFilename = () => `Syllabus_${d.term.replace(/\s+/g, "_")}`;
 
   const exportWord = () => dl(new Blob(["\ufeff" + fullHtml()], { type: "application/msword" }), fname("doc"));
   const exportPdf = () => {
     const f = frameRef.current; if (!f) return;
     const doc = f.contentWindow.document;
     doc.open(); doc.write(fullHtml()); doc.close();
+    doc.title = pdfFilename();
     setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); }, 250);
   };
 
@@ -798,8 +800,9 @@ export default function SyllabusBuilder() {
           <div className="flex items-center gap-2 mb-2" style={{ color: C.slate, fontSize: 12, letterSpacing: 1 }}>
             <ChevronRight size={13} style={{ color: C.orange }} />THIS IS EXACTLY WHAT EXPORTS
           </div>
-          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 3, padding: "34px 40px",
-            maxHeight: "calc(100vh - 130px)", overflow: "auto", boxShadow: "0 1px 4px rgba(11,34,64,.08)" }}>
+          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 3, boxSizing: "border-box",
+            width: "8.5in", maxWidth: "100%", padding: "0.8in", maxHeight: "calc(100vh - 130px)",
+            overflow: "auto", boxShadow: "0 1px 4px rgba(11,34,64,.08)" }}>
             <style>{DOC_CSS}</style>
             <div dangerouslySetInnerHTML={{ __html: docBody || `<p class="soft">Start on the left. The document builds itself here.</p>` }} />
           </div>
