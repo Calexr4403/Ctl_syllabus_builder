@@ -624,8 +624,12 @@ export default function SyllabusBuilder() {
                   <div style={{ color: C.slate, fontSize: 12, margin: "3px 0 8px" }}>{g.note}</div>
                   {g.items.map((it) => (
                     <div key={it} className="flex gap-2 items-start mb-2">
-                      <button onClick={() => setD((p) => ({ ...p, outcomes: [...p.outcomes.filter((x) => x.trim()), it] }))}
-                        style={{ color: C.orange, marginTop: 2, cursor: "pointer" }}><Plus size={14} /></button>
+                         {d.outcomes.includes(it) ? (
+                           <span title="Already in your outcomes" style={{ color: C.good, marginTop: 2 }}><Check size={14} /></span>
+                         ) : (
+                           <button onClick={() => setD((p) => ({ ...p, outcomes: [...p.outcomes.filter((x) => x.trim()), it] }))}
+                             style={{ color: C.orange, marginTop: 2, cursor: "pointer" }}><Plus size={14} /></button>
+                         )}
                       <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.45 }}>{it}</div>
                     </div>
                   ))}
