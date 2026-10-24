@@ -221,6 +221,102 @@ const FALL_2026 = [
   ["December 14", "Final grades due by 8:30 p.m."],
 ];
 
+/* Registrar's academic calendar, one entry per term. Dates are "YYYY-MM-DD".
+   noClass: holidays and breaks. The schedule skips these on the days a class meets. */
+
+const ACADEMIC_CALENDARS = {
+  "Fall 2026": {
+    start: "2026-08-24", end: "2026-12-04",
+    finals: ["2026-12-07", "2026-12-11"],
+    noClass: [
+      ["2026-09-07", "2026-09-07", "Labor Day holiday"],
+      ["2026-10-12", "2026-10-13", "Fall Break"],
+      ["2026-11-25", "2026-11-29", "Thanksgiving holiday"],
+    ],
+  },
+  "Spring 2027": {
+    start: "2027-01-07", end: "2027-04-23",
+    finals: ["2027-04-26", "2027-04-30"],
+    noClass: [
+      ["2027-01-18", "2027-01-18", "Martin Luther King holiday"],
+      ["2027-03-22", "2027-03-28", "Spring Break"], // includes the March 26 Spring Holiday
+    ],
+  },
+  "Maymester 2027": {
+    start: "2027-05-10", end: "2027-05-28",
+    noClass: [],
+  },
+  "Summer 2027 (Part of Term 1)": summer2027("2027-06-02", "2027-08-06"),
+  "Summer 2027 (Part of Term 2)": summer2027("2027-06-02", "2027-07-01"),
+  "Summer 2027 (Part of Term 3)": summer2027("2027-07-06", "2027-08-06"),
+  "Fall 2027": {
+    start: "2027-08-23", end: "2027-12-03",
+    finals: ["2027-12-06", "2027-12-10"],
+    noClass: [
+      ["2027-09-06", "2027-09-06", "Labor Day holiday"],
+      ["2027-10-11", "2027-10-12", "Fall Break"],
+      ["2027-11-24", "2027-11-28", "Thanksgiving holiday"],
+    ],
+  },
+};
+
+function summer2027(start, end) {
+  return {
+    start, end,
+    noClass: [
+      ["2027-05-31", "2027-05-31", "Memorial Day holiday"],
+      ["2027-06-18", "2027-06-18", "Juneteenth holiday"],
+      // Registrar lists "July 02 or 5". Confirm which day is observed.
+      ["2027-07-05", "2027-07-05", "July 4 holiday observed"],
+    ],
+  };
+}
+
+/* ---------- calendar helpers ---------- */
+
+const CLASS_DAYS = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"]];
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+  "August", "September", "October", "November", "December"];
+
+// Parse as local time. new Date("2026-08-24") is UTC and lands a day early in US time zones.
+const parseDate = (iso) => { const [y, m, dd] = iso.split("-").map(Number); return new Date(y, m - 1, dd); };
+const isoDate = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+const shortDate = (iso) => { const dt = parseDate(iso); return `${MONTHS[dt.getMonth()].slice(0, 3)} ${dt.getDate()}`; };
+const longRange = (a, b) => {
+  const x = parseDate(a), y = parseDate(b);
+  const first = `${MONTHS[x.getMonth()]} ${x.getDate()}`;
+  if (a === b) return first;
+  return x.getMonth() === y.getMonth() ? `${first} to ${y.getDate()}` : `${first} to ${MONTHS[y.getMonth()]} ${y.getDate()}`;
+};
+
+// One row per calendar week that has a meeting day, plus a finals row.
+// Holidays are only listed when they land on a day this class meets.
+function buildWeeks(cal, days) {
+  if (!cal || !days.length) return [];
+  const start = parseDate(cal.start), end = parseDate(cal.end);
+  const sunday = new Date(start.getFullYear(), start.getMonth(), start.getDate() - start.getDay());
+  const weeks = new Map();
+  for (const dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+    if (!days.includes(dt.getDay())) continue;
+    const iso = isoDate(dt);
+    const n = Math.floor(Math.round((dt - sunday) / 864e5) / 7); // round absorbs DST
+    if (!weeks.has(n)) weeks.set(n, { meets: [], off: new Map() });
+    const w = weeks.get(n);
+    const hol = cal.noClass.find(([a, b]) => iso >= a && iso <= b);
+    if (hol) w.off.set(hol[2], [...(w.off.get(hol[2]) || []), iso]);
+    else w.meets.push(iso);
+  }
+  const rows = [...weeks.values()].map((w, i) => ({
+    label: `Week ${i + 1}`,
+    dates: w.meets.map(shortDate).join(", "),
+    off: [...w.off].map(([name, isos]) =>
+      `No class ${isos.map((x) => `${DAY_NAMES[parseDate(x).getDay()]}, ${shortDate(x)}`).join(" and ")}: ${name}`),
+  }));
+  if (cal.finals) rows.push({ label: "Finals", dates: longRange(...cal.finals), off: [] });
+  return rows;
+}
+
 /* ---------- schedule date helpers ---------- */
 const FALL_2026_START = "2026-08-24";
 
@@ -257,7 +353,6 @@ const fmtWeight = (n) => {
 
 /* ---------- initial state ---------- */
 
-const SEMESTERS = ["Maymester", "Summer", "Fall", "Spring"];
 
 const MEETING_PATTERNS = [
   { value: "MWF", label: "Monday-Wednesday-Friday (MWF)" },
@@ -281,6 +376,7 @@ const blank = {
   attendance: "", late: "", lateSample: "", lateAdditional: [], participation: "",
   aiTier: "mixed", aiCustom: "", profNote: "", customPolicies: [],
   inc: { integrity: true, accessibility: true, support: true, crisis: true, changes: true },
+  meetDays: [], // 1 = Monday ... 6 = Saturday
   scheduleType: "weekly",
   semesterStart: FALL_2026_START,
   weeks: [{ label: "Week 1", dates: "", topics: "", due: "" }],
@@ -521,22 +617,40 @@ export default function SyllabusBuilder() {
   const lateText = [d.late, ...d.lateAdditional.map((policy) => policy.text)]
     .filter((text) => text.trim()).join("\n\n");
 
+  // With meeting days picked, week rows and their dates come from the registrar
+  // calendar; topics and due dates still come from d.weeks by position.
+  const cal = ACADEMIC_CALENDARS[d.term];
+  const autoWeeks = useMemo(() => buildWeeks(cal, d.meetDays), [cal, d.meetDays]);
+  // Modular schedules are hand-built, so the registrar calendar drives weekly ones only.
+  const auto = d.scheduleType !== "modular" && autoWeeks.length > 0;
+  const schedRows = auto
+    ? autoWeeks.map((w, i) => ({ ...w, topics: d.weeks[i]?.topics || "", due: d.weeks[i]?.due || "" }))
+    : d.weeks.map((w) => ({ ...w, off: [] }));
+  const setWeek = (i, key, v) => setD((p) => {
+    const a = [...p.weeks];
+    while (a.length <= i) a.push({ label: `Week ${a.length + 1}`, dates: "", topics: "", due: "" });
+    a[i] = { ...a[i], [key]: v };
+    return { ...p, weeks: a };
+  });
+  const toggleDay = (n) => set("meetDays",
+    d.meetDays.includes(n) ? d.meetDays.filter((x) => x !== n) : [...d.meetDays, n].sort());
+
   // Week numbers (1-based) whose topics field is empty. Drives both the
   // readiness check below and the pre-export confirm.
-  const missingWeeks = d.weeks
+  const missingWeeks = schedRows
     .map((w, i) => ({ w, n: i + 1 }))
     .filter(({ w }) => !w.topics?.trim())
     .map(({ n }) => n);
 
   // A full UTM semester is 15 weeks. The schedule is "complete" when there are
-  // at least 15 weeks and each of the first 15 has its topics filled in.
+  // at least 15 rows and each of the first 15 has its topics filled in.
   const FULL_TERM = 15;
   const blankInTerm = missingWeeks.filter((n) => n <= FULL_TERM);
-  const fifteenWeeksReady = d.weeks.length >= FULL_TERM && blankInTerm.length === 0;
+  const fifteenWeeksReady = schedRows.length >= FULL_TERM && blankInTerm.length === 0;
   const fifteenWeeksLabel = fifteenWeeksReady
     ? `All ${FULL_TERM} weeks are filled in`
-    : d.weeks.length < FULL_TERM
-      ? `Schedule has ${d.weeks.length} of ${FULL_TERM} weeks`
+    : schedRows.length < FULL_TERM
+      ? `Schedule has ${schedRows.length} of ${FULL_TERM} weeks`
       : `Week${blankInTerm.length > 1 ? "s" : ""} ${blankInTerm.join(", ")} missing topics (all ${FULL_TERM} weeks need topics)`;
 
   const selectedMeetingPattern = MEETING_PATTERNS.find(
@@ -569,7 +683,7 @@ export default function SyllabusBuilder() {
     ["Accessibility statement included", d.inc.accessibility],
     ["Academic integrity included", d.inc.integrity],
     ["Crisis resources included", d.inc.crisis],
-    ["Schedule has at least one entry", d.weeks.some((w) => hasText(w.topics) || hasText(w.dates))],
+    ["Schedule has at least one entry", auto || d.weeks.some((w) => hasText(w.topics) || hasText(w.dates))],
     [missingWeeks.length === 0
       ? "Every week in the schedule has topics"
       : `Topics missing for week${missingWeeks.length > 1 ? "s" : ""} ${missingWeeks.join(", ")}`,
@@ -717,15 +831,16 @@ export default function SyllabusBuilder() {
       uni.forEach((k) => { h.push(`<h3>${esc(LOCKED[k].title)}</h3>`); h.push(para(LOCKED[k].text)); });
     }
 
-    const wk = d.weeks.filter((w) => w.label || w.topics || w.dates);
+    const wk = schedRows.filter((w) => w.label || w.topics || w.dates);
     if (wk.length) {
       sec("Course Schedule");
       h.push(`<table class="grid"><tr><th class="wk">${d.scheduleType === "modular" ? "Module" : "Week"}</th><th>Topics and Readings</th><th class="due">Due</th></tr>${
-        wk.map((w) => `<tr><td class="wk"><strong>${esc(w.label)}</strong>${w.dates ? `<br/><span class="soft">${esc(w.dates)}</span>` : ""}</td><td>${esc(w.topics).replace(/\n/g, "<br/>")}</td><td class="due">${esc(w.due).replace(/\n/g, "<br/>")}</td></tr>`).join("")
+        wk.map((w) => `<tr><td class="wk"><strong>${esc(w.label)}</strong>${w.dates ? `<br/><span class="soft">${esc(w.dates)}</span>` : ""}</td><td>${
+          w.off.map((o) => `<div class="off">${esc(o)}</div>`).join("")}${esc(w.topics).replace(/\n/g, "<br/>")}</td><td class="due">${esc(w.due).replace(/\n/g, "<br/>")}</td></tr>`).join("")
       }</table>`);
     }
 
-    if (d.calNote && d.term === "Fall") {
+    if (d.calNote && d.term === "Fall 2026") {
       sec("Fall 2026 Dates You Should Know");
       h.push(`<table class="grid">${FALL_2026.map((r) =>
         `<tr><th class="wk">${esc(r[0])}</th><td>${esc(r[1])}</td></tr>`).join("")}</table>
@@ -733,7 +848,7 @@ export default function SyllabusBuilder() {
     }
 
     return h.join("");
-  }, [d, weightTotal, realOutcomes, aiText, meetingDisplay]);
+  }, [d, weightTotal, realOutcomes, aiText, meetingDisplay, schedRows]);
 
   const DOC_CSS = `
     body{font-family:Cambria,Georgia,serif;font-size:11pt;line-height:1.5;color:#1a1a1a;margin:0}
@@ -763,6 +878,7 @@ export default function SyllabusBuilder() {
     .primer{border-left:4px solid ${C.orange};background:#FAFBFD;padding:10px 14px;margin:8px 0 14px;font-size:10pt}
     .primer-h{font-weight:bold;color:${C.navy};margin-bottom:6px}
     .pnote{border:1px solid ${C.orange};background:#FFF8F0;padding:10px 14px;margin:10px 0;font-size:10.5pt}
+    .off{color:${C.warn};font-weight:bold;font-size:10pt;margin-bottom:3px}
   `;
 
   const fullHtml = () =>
@@ -899,15 +1015,11 @@ export default function SyllabusBuilder() {
               <div style={{ flex: "1 1 130px" }}><Field label="Section"><T value={d.section} onChange={(v) => set("section", v)} placeholder="001" /></Field></div>
             </div>
             <div className="flex gap-3 flex-wrap">
-               <div style={{ flex: "1 1 130px" }}>
-                <Field label="Semester">
-                  <select style={inputBase} value={d.term} onChange={(e) => set("term", e.target.value)}>
-                    {SEMESTERS.map((semester) => (
-                      <option key={semester} value={semester}>{semester}</option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
+              <div style={{ flex: "1 1 130px" }}><Field label="Term">
+                <select style={inputBase} value={d.term} onChange={(e) => set("term", e.target.value)}>
+                  {[...new Set([...Object.keys(ACADEMIC_CALENDARS), d.term])].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </Field></div>
               <div style={{ flex: "1 1 130px" }}><Field label="Credit hours"><T value={d.credits} onChange={(v) => set("credits", v)} /></Field></div>
             </div>
             <Field label="Delivery" hint="students read this before they register">
@@ -1287,37 +1399,65 @@ export default function SyllabusBuilder() {
                 <option value="modular">Modular</option>
               </select>
             </Field>
-            <Note>Choose the first day of classes and the builder will fill each week's Monday-to-Friday date range automatically. You can still edit any individual week afterward.</Note>
-            <div className="flex gap-2 items-end flex-wrap mb-4">
-              <div style={{ minWidth: 220 }}>
-                <Lbl hint="used for automatic week dates">Semester start</Lbl>
-                <T type="date" value={d.semesterStart} onChange={(v) => set("semesterStart", v)} />
+            <Field label="Class meets on" hint={cal ? `dates come from the ${d.term} registrar calendar` : "pick a term on the Course tab to use the registrar calendar"}>
+              <div className="flex flex-wrap gap-1">
+                {CLASS_DAYS.map(([n, name]) => {
+                  const on = d.meetDays.includes(n);
+                  return (
+                    <button key={n} type="button" aria-pressed={on} aria-label={DAY_NAMES[n]} onClick={() => toggleDay(n)}
+                      style={{ fontSize: 13, padding: "5px 12px", borderRadius: 14, cursor: "pointer", fontWeight: on ? "bold" : "normal",
+                        border: `1px solid ${on ? C.orange : C.line}`, background: on ? C.orange : "#fff", color: on ? "#fff" : C.slate }}>
+                      {name}
+                    </button>
+                  );
+                })}
               </div>
-              <Btn onClick={autofillScheduleDates} icon={CalendarDays}>Autofill dates</Btn>
-              <Btn onClick={buildSemesterSchedule} icon={CalendarDays}>Build 15 weeks with dates</Btn>
-            </div>
-            {d.term.startsWith("Fall") ? (
+            </Field>
+            {auto ? (
+              <Note>Weeks and dates are built from the days you picked. Holidays that fall on those days are marked "No class." Fill in topics and due dates below.</Note>
+            ) : (
+              <>
+                <Note>Choose the first day of classes and the builder will fill each week's Monday-to-Friday date range automatically. You can still edit any individual week afterward.</Note>
+                <div className="flex gap-2 items-end flex-wrap mb-4">
+                  <div style={{ minWidth: 220 }}>
+                    <Lbl hint="used for automatic week dates">Semester start</Lbl>
+                    <T type="date" value={d.semesterStart} onChange={(v) => set("semesterStart", v)} />
+                  </div>
+                  <Btn onClick={autofillScheduleDates} icon={CalendarDays}>Autofill dates</Btn>
+                  <Btn onClick={buildSemesterSchedule} icon={CalendarDays}>Build 15 weeks with dates</Btn>
+                </div>
+              </>
+            )}
+            {d.term === "Fall 2026" ? (
               <label className="flex items-start gap-2 mb-4 text-sm" style={{ color: C.slate, cursor: "pointer" }}>
                 <input type="checkbox" checked={d.calNote} onChange={(e) => set("calNote", e.target.checked)} style={{ marginTop: 3 }} />
                 <span>Append the Fall 2026 registrar dates: add and drop deadlines, Fall Break, Thanksgiving, finals, and commencement.</span>
               </label>
             ) : (
-              <Note>The built-in registrar-date table is currently available only for Fall 2026, so it will not be appended for this semester.</Note>
+              <Note>The built-in add/drop and deadline table is currently available only for Fall 2026, so it will not be appended for this semester.</Note>
             )}
-            {d.weeks.map((w, i) => (
+            {schedRows.map((w, i) => (
               <div key={i} className="p-3 mb-3 rounded" style={{ background: UI.paper, border: `1px solid ${UI.line}` }}>
-                <div className="flex gap-2 mb-2">
-                  <div style={{ flex: 1 }}><T value={w.label} onChange={(v) => setDeep("weeks", i, "label", v)} placeholder={d.scheduleType === "modular" ? `Module ${i + 1}` : `Week ${i + 1}`} /></div>
-                  <div style={{ flex: 2 }}><T value={w.dates} onChange={(v) => setDeep("weeks", i, "dates", v)} placeholder={d.scheduleType === "modular" ? "Module dates (optional)" : "August 24 to 28"} /></div>
-                  <button onClick={() => drop("weeks", i)} style={{ color: UI.muted, cursor: "pointer" }}><Trash2 size={15} /></button>
-                </div>
+                {auto ? (
+                  <div className="mb-2">
+                    <span style={{ color: C.navy, fontWeight: "bold", fontSize: 14 }}>{w.label}</span>
+                    <span style={{ color: C.slate, fontSize: 13, marginLeft: 8 }}>{w.dates}</span>
+                    {w.off.map((o) => <div key={o} style={{ color: C.warn, fontSize: 12.5, fontWeight: "bold", marginTop: 2 }}>{o}</div>)}
+                  </div>
+                ) : (
+                  <div className="flex gap-2 mb-2">
+                    <div style={{ flex: 1 }}><T value={w.label} onChange={(v) => setDeep("weeks", i, "label", v)} placeholder={d.scheduleType === "modular" ? `Module ${i + 1}` : `Week ${i + 1}`} /></div>
+                    <div style={{ flex: 2 }}><T value={w.dates} onChange={(v) => setDeep("weeks", i, "dates", v)} placeholder={d.scheduleType === "modular" ? "Module dates (optional)" : "August 24 to 28"} /></div>
+                    <button onClick={() => drop("weeks", i)} style={{ color: UI.muted, cursor: "pointer" }}><Trash2 size={15} /></button>
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  <div style={{ flex: 2 }}><A rows={3} value={w.topics} onChange={(v) => setDeep("weeks", i, "topics", v)} placeholder="Topic and readings" /></div>
-                  <div style={{ flex: 1 }}><A rows={3} value={w.due} onChange={(v) => setDeep("weeks", i, "due", v)} placeholder="Due" /></div>
+                  <div style={{ flex: 2 }}><A rows={3} value={w.topics} onChange={(v) => setWeek(i, "topics", v)} placeholder="Topic and readings" /></div>
+                  <div style={{ flex: 1 }}><A rows={3} value={w.due} onChange={(v) => setWeek(i, "due", v)} placeholder="Due" /></div>
                 </div>
               </div>
             ))}
-            <div className="flex gap-2 flex-wrap items-start">
+            {!auto && (<div className="flex gap-2 flex-wrap items-start">
               <Btn onClick={() => {
                 const i = d.weeks.length;
                 const dates = buildWeekDates(d.semesterStart, i + 1);
@@ -1358,7 +1498,7 @@ export default function SyllabusBuilder() {
                   {weekCountWarning ? "Enter a whole number between 1-15." : ""/* displays a warning if the week count is invalid */}
                 </div>
               </div>)}
-            </div>
+            </div>)}
           </>)}
 
                     {tab === 9 && (<>
