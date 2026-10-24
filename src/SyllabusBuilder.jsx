@@ -363,7 +363,9 @@ const MEETING_PATTERNS = [
   { value: "custom", label: "Custom" },
 ];
 
-const blank = {
+// Builds a fresh blank draft. Returning a new object each time keeps the
+// initial state and every reset independent of each other.
+const createBlank = () => ({
   code: "", title: "", crn: "", section: "", term: "Fall 2026", modality: "In person",
   credits: "3", meetingPattern: "", meeting: "", meetingTime: "",
   location: "", exlocation: "", dept: "", prereq: "",
@@ -390,7 +392,10 @@ const blank = {
     description: "", gradeNote: "", attendance: "",
     safety: "", supplies: "", makeup: "",
   },
-};
+});
+
+// Read-only baseline used to tell whether the draft has been edited.
+const blank = createBlank();
 
 /* ---------- small UI atoms ---------- */
 
@@ -457,7 +462,7 @@ const Note = ({ children }) => (
  * the document builder so the preview and downloaded files always match.
  */
 export default function SyllabusBuilder() {
-  const [d, setD] = useState(blank);
+  const [d, setD] = useState(createBlank);
   // adds a warning before the user leaves the page changes will not be saved.
   const hasUnsavedChanges = JSON.stringify(d) !== JSON.stringify(blank);
 
@@ -483,6 +488,7 @@ export default function SyllabusBuilder() {
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const frameRef = useRef(null);
   const previewRef = useRef(null);
+  const formRef = useRef(null);
 
   useEffect(() => {
     if (!previewFullscreen) return;
@@ -504,6 +510,16 @@ export default function SyllabusBuilder() {
     outcomes: "STUDENT LEARNING OUTCOMES",
   };
 
+  // The element that actually scrolls the preview: the page itself in normal
+  // mode, or its wrapper in fullscreen, where the page is allowed to grow.
+  const previewScroller = () => {
+    let el = previewRef.current;
+    while (el && el !== document.body && el.scrollHeight <= el.clientHeight + 1) {
+      el = el.parentElement;
+    }
+    return el && el !== document.body ? el : null;
+  };
+
   // Scroll the preview to the heading for the section being edited, so the user
   // sees the change without hunting for it. Works in both normal and fullscreen
   // mode, where the scrolling element is the wrapper around the page.
@@ -513,11 +529,8 @@ export default function SyllabusBuilder() {
     const heading = [...paper.querySelectorAll("h2, h3")]
       .find((h) => h.innerText.trim() === sectionName);
     if (!heading) return;
-    let scroller = paper;
-    while (scroller && scroller !== document.body && scroller.scrollHeight <= scroller.clientHeight + 1) {
-      scroller = scroller.parentElement;
-    }
-    if (!scroller || scroller === document.body) return;
+    const scroller = previewScroller();
+    if (!scroller) return;
     const top = heading.getBoundingClientRect().top - scroller.getBoundingClientRect().top
       + scroller.scrollTop - 60;
     scroller.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
@@ -907,10 +920,16 @@ export default function SyllabusBuilder() {
   /** Downloads the current syllabus as an editable Word-compatible HTML document. */
   const exportWord = () => dl(new Blob(["\ufeff" + fullHtml()], { type: "application/msword" }), fname("doc"));
   const clearForm = () => {
-    if (window.confirm("Clear the entire syllabus and start over? This cannot be undone. Export your syllabus first if you want to keep a copy.")) {
-      setD(blank);
-      setTab(0);
-    }
+    if (!window.confirm("Clear the entire syllabus and start over? This cannot be undone. Export your syllabus first if you want to keep a copy.")) return;
+    setD(createBlank());
+    setTab(0);
+    const scroller = previewScroller();
+    if (scroller) scroller.scrollTop = 0;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    // Put the cursor back in the first field so the user can start over typing.
+    window.requestAnimationFrame(() => {
+      formRef.current?.querySelector("input")?.focus({ preventScroll: true });
+    });
   };
   /** Opens the browser print dialog with the current syllabus formatted for PDF output. */  const exportPdf = () => {
     const f = frameRef.current; if (!f) return;
@@ -1012,7 +1031,7 @@ export default function SyllabusBuilder() {
         </div>
 
         {/* form */}
-        <div className="p-5" style={{ flex: "1 1 420px", minWidth: 340, maxWidth: 620 }}>
+        <div ref={formRef} className="p-5" style={{ flex: "1 1 420px", minWidth: 340, maxWidth: 620 }}>
           {tab === 0 && (<>
             <H>Course</H>
             <div className="flex gap-3 flex-wrap">
