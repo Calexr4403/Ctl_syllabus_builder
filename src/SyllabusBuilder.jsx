@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   BookOpen, User, MessageSquare, Target, Library, Scale, Gavel,
   ShieldCheck, CalendarDays, FileDown, Check, AlertTriangle, Plus, Trash2,
-  Printer, Lock, Info, ChevronRight, FlaskConical
+  Save, Upload, Printer, Lock, Info, ChevronRight, Maximize2, Minimize2
 } from "lucide-react";
 
 /* ============================================================
@@ -130,6 +130,29 @@ Ask. If you have questions about how to use a tool for a particular task, come t
   custom: { label: "Write my own", text: "" },
 };
 
+const LATE_POLICIES = [
+  {
+    label: "Grace period",
+    text: "Assignments may be submitted up to 48 hours after the deadline without penalty. After the grace period, late work is not accepted unless an extension has been arranged with the instructor. Contact me as early as possible if you need additional time.",
+  },
+  {
+    label: "Daily late penalty",
+    text: "Late assignments lose 10 percentage points per calendar day, up to five days after the deadline. Work submitted more than five days late is not accepted. Contact me before the deadline if circumstances may affect your ability to submit on time.",
+  },
+  {
+    label: "Extensions by request",
+    text: "You may request an extension before an assignment deadline. Include the assignment name and the amount of additional time you need; I will confirm a revised due date. Please contact me as early as you can so we can make a plan.",
+  },
+  {
+    label: "Make-up work for excused absences",
+    text: "Students who miss an exam or assignment because of an excused absence should contact me as soon as possible to arrange make-up work. We will agree on a reasonable completion date. For planned absences, please reach out in advance whenever possible.",
+  },
+  {
+    label: "Late assignments and make-up exams",
+    text: "Assignments may be submitted up to seven days late with a 10 percent penalty per day. Make-up exams are available for excused absences; contact me promptly to arrange a time. If you anticipate missing a deadline or exam, please get in touch as early as possible.",
+  },
+];
+
 const LOCKED = {
   integrity: {
     title: "Academic Integrity",
@@ -255,7 +278,7 @@ const blank = {
   materials: { provided: false, hardcopy: false, online: false, acquire: "" },
   items: [{ name: "", weight: "", points: "", due: "", desc: "", slos: [] }],
   scale: "A 90 to 100  ·  B 80 to 89  ·  C 70 to 79  ·  D 60 to 69  ·  F below 60",
-  attendance: "", late: "", participation: "",
+  attendance: "", late: "", lateSample: "", lateAdditional: [], participation: "",
   aiTier: "mixed", aiCustom: "", profNote: "", customPolicies: [],
   inc: { integrity: true, accessibility: true, support: true, crisis: true, changes: true },
   scheduleType: "weekly",
@@ -354,12 +377,20 @@ export default function SyllabusBuilder() {
   const [theme,setTheme] = useState('light');
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);  const [pendingDelete, setPendingDelete] = useState(null);
+  }, [theme]);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [weekCount, setWeekCount] = useState("15");
   const [weekCountWarning, setWeekCountWarning] = useState(false);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const frameRef = useRef(null);
 
-  // Update one top-level syllabus field while preserving the rest of the draft.
+  useEffect(() => {
+    if (!previewFullscreen) return;
+    const onKeyDown = (event) => { if (event.key === "Escape") setPreviewFullscreen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewFullscreen]);
+
   const set = (k, v) => setD((p) => ({ ...p, [k]: v }));
   // Update one property inside a repeated array item, such as an assignment or week.
   const setDeep = (k, i, key, v) =>
@@ -449,6 +480,8 @@ export default function SyllabusBuilder() {
   const unmapped = realOutcomes.map((_, i) => i).filter((i) => !mappedSlos.has(i));
 
   const aiText = d.aiTier === "custom" ? d.aiCustom : AI_POLICIES[d.aiTier].text;
+  const lateText = [d.late, ...d.lateAdditional.map((policy) => policy.text)]
+    .filter((text) => text.trim()).join("\n\n");
 
 
   const selectedMeetingPattern = MEETING_PATTERNS.find(
@@ -476,7 +509,7 @@ export default function SyllabusBuilder() {
     ["Assessment weights total 100 percent", Math.abs(weightTotal - 100) < 0.01],
     ["Grading scale", hasText(d.scale)],
     ["Attendance policy", hasText(d.attendance)],
-    ["Late work and make-up policy", hasText(d.late)],
+    ["Late work and make-up policy", hasText(lateText)],
     ["AI policy (required by UTM policy)", hasText(aiText)],
     ["Accessibility statement included", d.inc.accessibility],
     ["Academic integrity included", d.inc.integrity],
@@ -599,7 +632,7 @@ export default function SyllabusBuilder() {
     const pol = [];
     if (d.attendance) pol.push(["Attendance and Participation", d.attendance]);
     if (d.participation) pol.push(["What Engagement Looks Like Here", d.participation]);
-    if (d.late) pol.push(["Late Work and Make-Up Policy", d.late]);
+    if (lateText) pol.push(["Late Work and Make-Up Policy", lateText]);
     if (d.subjectLine || d.responseTime || d.address)
       pol.push(["Reaching Me", [
         d.subjectLine && `Use this subject line on every email: ${d.subjectLine}`,
@@ -1120,7 +1153,34 @@ export default function SyllabusBuilder() {
               />
             </Field> 
             <Field label="What engagement looks like here" hint="optional, but it removes a lot of guesswork"><A rows={3} value={d.participation} onChange={(v) => set("participation", v)} placeholder="Merely showing up and sitting through the class is not participation. Asking questions during Q and A, contributing to project discussions, and showing up to team meetings all count." /></Field>
-            <Field label="Late work and make-up"><A rows={3} value={d.late} onChange={(v) => set("late", v)} placeholder="All assignments except exams can be made up with a 30 percent late penalty. Exams cannot be made up except for documented emergencies. Reach out before the deadline, not after." /></Field>
+            <Field label="Late work and make-up" hint="choose a sample, then edit as needed">
+              <select value={d.lateSample} onChange={(e) => {
+                const sample = LATE_POLICIES.find((policy) => policy.label === e.target.value);
+                set("lateSample", e.target.value);
+                set("late", sample?.text || "");
+              }} style={{ ...inputBase, marginBottom: 8 }}>
+                <option value="">Choose a sample policy...</option>
+                {LATE_POLICIES.map((policy) => <option key={policy.label} value={policy.label}>{policy.label}</option>)}
+              </select>
+              <A rows={3} value={d.late} onChange={(v) => set("late", v)} placeholder="Describe your late work deadlines, penalties, extensions, and make-up arrangements." />
+            </Field>
+            {d.lateAdditional.map((policy, i) => (
+              <Field key={i} label={`Additional policy`} hint="choose a sample, then edit as needed">
+                <select value={policy.sample} onChange={(e) => {
+                  const sample = LATE_POLICIES.find((option) => option.label === e.target.value);
+                  setDeep("lateAdditional", i, "sample", e.target.value);
+                  setDeep("lateAdditional", i, "text", sample?.text || "");
+                }} style={{ ...inputBase, marginBottom: 8 }}>
+                  <option value="">Choose a sample policy...</option>
+                  {LATE_POLICIES.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
+                </select>
+                <A rows={3} value={policy.text} onChange={(v) => setDeep("lateAdditional", i, "text", v)} placeholder="Describe an additional late work or make-up arrangement." />
+                <div className="flex justify-end mt-2">
+                  <Btn onClick={() => drop("lateAdditional", i)} icon={Trash2}>Remove policy</Btn>
+                </div>
+              </Field>
+            ))}
+            <Btn onClick={() => push("lateAdditional", { sample: "", text: "" })} icon={Plus}>Add another policy</Btn>
 
             <div className="mt-6 mb-2" style={{ color: UI.navy, fontWeight: "bold", fontSize: 14 }}>Artificial Intelligence Policy</div>
             <Note>UTM's AI policy, effective July 1, 2025, requires every syllabus to state your expectations for student AI use. This is not optional, so pick a tier below. The three tiers match the policy: unrestricted, mixed, and total prohibition.</Note>
@@ -1304,15 +1364,42 @@ export default function SyllabusBuilder() {
         </div>
 
         {/* preview */}
-        <div className="p-5" style={{ flex: "1 1 460px", minWidth: 360 }}>
-          <div className="flex items-center gap-2 mb-2" style={{ color: C.slate, fontSize: 12, letterSpacing: 1 }}>
-            <ChevronRight size={13} style={{ color: C.orange }} />THIS IS EXACTLY WHAT EXPORTS
+        <div className={previewFullscreen ? "" : "p-5"} style={previewFullscreen
+          ? { position: "fixed", inset: 0, zIndex: 1000, display: "flex", flexDirection: "column", background: C.wash }
+          : { flex: "1 1 460px", minWidth: 360 }}>
+          <div className="flex items-center justify-between gap-3 mb-2" style={{
+            color: C.slate, fontSize: 12, letterSpacing: 1,
+            ...(previewFullscreen ? { background: "#fff", borderBottom: `1px solid ${C.line}`, padding: "12px 20px", marginBottom: 0 } : {}),
+          }}>
+            <div className="flex items-center gap-2">
+              <ChevronRight size={13} style={{ color: C.orange }} />THIS IS EXACTLY WHAT EXPORTS
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreviewFullscreen((fullscreen) => !fullscreen)}
+              aria-label={previewFullscreen ? "Exit fullscreen preview" : "Open fullscreen preview"}
+              aria-pressed={previewFullscreen}
+              title={previewFullscreen ? "Exit fullscreen (Esc)" : "Open fullscreen preview"}
+              className="flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold"
+              style={{ background: "#fff", color: C.navy, border: `1px solid ${C.line}`, cursor: "pointer", letterSpacing: 0 }}
+            >
+              {previewFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              {previewFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            </button>
           </div>
-          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 3, boxSizing: "border-box",
-            width: "8.5in", maxWidth: "100%", padding: "0.8in", maxHeight: "calc(100vh - 130px)",
-            overflow: "auto", boxShadow: "0 1px 4px rgba(11,34,64,.08)" }}>
-            <style>{DOC_CSS}</style>
-            <div dangerouslySetInnerHTML={{ __html: docBody || `<p class="soft">Start on the left. The document builds itself here.</p>` }} />
+          <div style={previewFullscreen
+            ? { flex: 1, minHeight: 0, overflow: "auto", padding: "24px clamp(16px, 5vw, 72px)" }
+            : {}}>
+            <div style={{
+              background: "#fff", border: `1px solid ${C.line}`, borderRadius: 3, boxSizing: "border-box",
+              width: "8.5in", maxWidth: "100%", padding: "0.8in",
+              maxHeight: previewFullscreen ? "none" : "calc(100vh - 130px)", overflow: previewFullscreen ? "visible" : "auto",
+              boxShadow: "0 1px 4px rgba(11,34,64,.08)",
+              ...(previewFullscreen ? { maxWidth: 1100, minHeight: "100%", margin: "0 auto" } : {}),
+            }}>
+              <style>{DOC_CSS}</style>
+              <div dangerouslySetInnerHTML={{ __html: docBody || `<p class="soft">Start on the left. The document builds itself here.</p>` }} />
+            </div>
           </div>
         </div>
       </div>
