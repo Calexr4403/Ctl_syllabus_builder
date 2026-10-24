@@ -34,6 +34,22 @@ const C = {
   warn: "#B45309",
 };
 
+const UI = {
+  wash: "var(--wash)",
+  paper: "var(--paper)",
+  tint: "var(--tint)",
+  line: "var(--line)",
+  ink: "var(--ink)",
+  slate: "var(--slate)",
+  muted: "var(--muted)",
+  navy: "var(--navy)",
+  orange: "var(--orange)",
+  good: "var(--good)",
+  goodBg: "var(--goodBg)",
+  warn: "var(--warn)",
+  warnBg: "var(--warnBg)",
+};
+
 /* ---------- Institutional content maintained by CTL ---------- */
 
 const SLO_PRIMER = `A student learning outcome describes what a student will be able to DO by the end of this course. It is not a list of what you will cover. That difference is the whole thing. "We will cover the causes of the Cold War" is a topic. "Students will evaluate competing explanations for the outbreak of the Cold War using primary sources" is an outcome, because you can point to a specific assignment that shows whether a student did it or not.
@@ -275,15 +291,15 @@ const sanitizePart = (s) => {
 /** Renders an uppercase field label and an optional hint. */
 const Lbl = ({ children, hint }) => (
   <div className="mb-1">
-    <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: C.slate }}>{children}</span>
-    {hint && <span className="ml-2 text-xs" style={{ color: "#8894A8" }}>{hint}</span>}
+    <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: UI.slate }}>{children}</span>
+    {hint && <span className="ml-2 text-xs" style={{ color: UI.muted }}>{hint}</span>}
   </div>
 );
 
 const inputBase = {
-  width: "100%", border: `1px solid ${C.line}`, borderRadius: 4,
+  width: "100%", border: `1px solid ${UI.line}`, borderRadius: 4,
   padding: "7px 10px", fontFamily: "Cambria, Georgia, serif",
-  fontSize: 14, color: C.ink, background: "#fff", outline: "none",
+  fontSize: 14, color: UI.ink, background: UI.paper, outline: "none",
 };
 
 /** Renders a controlled single-line text input using the builder's shared styling. */
@@ -305,7 +321,7 @@ const Field = ({ label, hint, children }) => (
 
 /** Displays instructional text without adding it to the exported syllabus. */
 const Note = ({ children }) => (
-  <div className="flex gap-2 p-3 mb-4 rounded text-sm" style={{ background: "#F0F5FA", color: C.slate, lineHeight: 1.55 }}>
+  <div className="flex gap-2 p-3 mb-4 rounded text-sm" style={{ background: UI.tint, color: UI.slate, lineHeight: 1.55 }}>
     <Info size={15} style={{ color: C.navy, flexShrink: 0, marginTop: 2 }} />
     <div>{children}</div>
   </div>
@@ -335,7 +351,10 @@ export default function SyllabusBuilder() {
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [hasUnsavedChanges]);
   const [tab, setTab] = useState(0);
-  const [pendingDelete, setPendingDelete] = useState(null);
+  const [theme,setTheme] = useState('light');
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);  const [pendingDelete, setPendingDelete] = useState(null);
   const [weekCount, setWeekCount] = useState("15");
   const [weekCountWarning, setWeekCountWarning] = useState(false);
   const frameRef = useRef(null);
@@ -721,7 +740,7 @@ export default function SyllabusBuilder() {
   /** Renders a consistently styled action button with an optional icon. */
   const Btn = ({ onClick, children, icon: I, primary }) => (
     <button onClick={onClick} className="flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold"
-      style={{ background: primary ? C.navy : "#fff", color: primary ? "#fff" : C.navy,
+      style={{ background: primary ? C.navy : UI.paper, color: primary ? "#fff" : UI.navy,
         border: `1px solid ${primary ? C.navy : C.line}`, cursor: "pointer" }}>
       {I && <I size={15} />}{children}
     </button>
@@ -729,7 +748,7 @@ export default function SyllabusBuilder() {
 
   /* ---------- editor layout: navigation, form controls, and matching live preview ---------- */
   return (
-    <div style={{ fontFamily: "Cambria, Georgia, serif", background: C.wash, minHeight: "100vh" }}>
+    <div style={{ fontFamily: "Cambria, Georgia, serif", background: UI.wash, minHeight: "100vh" }}>
       <iframe ref={frameRef} title="print" style={{ position: "fixed", width: 0, height: 0, border: 0, left: -9999 }} />
       {pendingDelete && (
         <div role="presentation" onMouseDown={() => setPendingDelete(null)} style={{ position: "fixed", inset: 0, zIndex: 10,
@@ -769,18 +788,24 @@ export default function SyllabusBuilder() {
 
       <div className="flex flex-wrap" style={{ alignItems: "flex-start" }}>
         {/* left rail */}
-        <div style={{ width: 150, background: "#fff", borderRight: `1px solid ${C.line}`, minHeight: "calc(100vh - 62px)" }}>
+        <div style={{ width: 150, background: UI.paper, borderRight: `1px solid ${UI.line}`, minHeight: "calc(100vh - 62px)" }}>
           {TABS.map((t, i) => {
             const on = tab === i; const I = t.i;
             return (
               <button key={t.n} onClick={() => setTab(i)}
                 className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left"
-                style={{ background: on ? "#EEF2F7" : "transparent", color: on ? C.navy : C.slate,
+                style={{ background: on ? UI.tint : "transparent", color: on ? UI.navy : UI.slate,
                   borderLeft: `3px solid ${on ? C.orange : "transparent"}`, fontWeight: on ? "bold" : "normal", cursor: "pointer" }}>
                 <I size={15} />{t.n}
               </button>
             );
           })}
+          <button
+          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          style={{margin: 12, padding: "6px 10px", borderRadius: 4, cursor: "pointer",
+            background: UI.paper, color: UI.ink, border: '1px solid ${UI.line}'}}>
+          {theme === "light" ? "Dark mode" : "Light mode"}
+            </button>
         </div>
 
         {/* form */}
@@ -950,7 +975,7 @@ export default function SyllabusBuilder() {
 
           {tab === 3 && (<>
             <H>Learning Outcomes</H>
-            <label className="flex items-start gap-2 mb-4 text-sm" style={{ color: C.slate, cursor: "pointer" }}>
+            <label className="flex items-start gap-2 mb-4 text-sm" style={{ color: UI.slate, cursor: "pointer" }}>
               <input type="checkbox" checked={d.showPrimer} onChange={(e) => set("showPrimer", e.target.checked)} style={{ marginTop: 3 }} />
               <span>Include the explainer box in the exported document. It tells a new faculty member what an SLO is, how to test one, and why the Gen Ed outcomes belong here. Uncheck it, or delete the box in Word, once your outcomes are written.</span>
             </label>
@@ -965,9 +990,9 @@ export default function SyllabusBuilder() {
             <Btn onClick={() => push("outcomes", "")} icon={Plus}>Add outcome</Btn>
             <div className="mt-6">
               {OUTCOME_LIBRARY.map((g) => (
-                <div key={g.group} className="mb-4 p-3 rounded" style={{ background: "#fff", border: `1px solid ${C.line}` }}>
-                  <div style={{ color: C.navy, fontWeight: "bold", fontSize: 13 }}>{g.group}</div>
-                  <div style={{ color: C.slate, fontSize: 12, margin: "3px 0 8px" }}>{g.note}</div>
+                <div key={g.group} className="mb-4 p-3 rounded" style={{ background: UI.paper, border: `1px solid ${UI.line}` }}>
+                  <div style={{ color: UI.navy, fontWeight: "bold", fontSize: 13 }}>{g.group}</div>
+                  <div style={{ color: UI.slate, fontSize: 12, margin: "3px 0 8px" }}>{g.note}</div>
                   {g.items.map((it) => (
                     <div key={it} className="flex gap-2 items-start mb-2">
                          {d.outcomes.includes(it) ? (
@@ -976,7 +1001,7 @@ export default function SyllabusBuilder() {
                            <button onClick={() => setD((p) => ({ ...p, outcomes: [...p.outcomes.filter((x) => x.trim()), it] }))}
                              style={{ color: C.orange, marginTop: 2, cursor: "pointer" }}><Plus size={14} /></button>
                          )}
-                      <div style={{ fontSize: 12.5, color: C.slate, lineHeight: 1.45 }}>{it}</div>
+                      <div style={{ fontSize: 12.5, color: UI.slate, lineHeight: 1.45 }}>{it}</div>
                     </div>
                   ))}
                 </div>
@@ -1009,19 +1034,19 @@ export default function SyllabusBuilder() {
           {tab === 5 && (<>
             <H>Assessment and Grading</H>
             <div className="p-3 mb-4 rounded flex items-center gap-2" style={{
-              background: Math.abs(weightTotal - 100) < 0.01 ? "#EAF6EF" : "#FEF6E7",
-              color: Math.abs(weightTotal - 100) < 0.01 ? C.good : C.warn, fontSize: 14, fontWeight: "bold" }}>
+              background: Math.abs(weightTotal - 100) < 0.01 ? UI.goodBg : UI.warnBg,
+              color: Math.abs(weightTotal - 100) < 0.01 ? UI.good : UI.warn, fontSize: 14, fontWeight: "bold" }}>
               {Math.abs(weightTotal - 100) < 0.01 ? <Check size={16} /> : <AlertTriangle size={16} />}
               Weights total {fmtWeight(weightTotal)}%{Math.abs(weightTotal - 100) < 0.01 ? "" : `, which is ${weightTotal > 100 ? "over" : "under"} by ${fmtWeight(Math.abs(100 - weightTotal))}`}
             </div>
             {d.items.map((x, i) => (
-              <div key={i} className="p-3 mb-3 rounded" style={{ background: "#fff", border: `1px solid ${C.line}` }}>
+              <div key={i} className="p-3 mb-3 rounded" style={{ background: UI.paper, border: `1px solid ${UI.line}` }}>
                 <div className="flex gap-2 mb-2">
                   <div style={{ flex: 3 }}><T value={x.name} onChange={(v) => setDeep("items", i, "name", v)} placeholder="Final paper" /></div>
                   <div style={{ flex: 1 }}><T mono value={x.weight} onChange={(v) => setDeep("items", i, "weight", v)} placeholder="%" /></div>
                   <div style={{ flex: 1 }}><T mono value={x.points} onChange={(v) => setDeep("items", i, "points", v)} placeholder="pts" /></div>
                   <div style={{ flex: 1 }}><T value={x.due} onChange={(v) => setDeep("items", i, "due", v)} placeholder="Due date" /></div>
-                  <button onClick={() => drop("items", i)} style={{ color: "#9AA5B5", cursor: "pointer" }}><Trash2 size={15} /></button>
+                  <button onClick={() => drop("items", i)} style={{ color: UI.muted, cursor: "pointer" }}><Trash2 size={15} /></button>
                 </div>
                 <A rows={2} value={x.desc} onChange={(v) => setDeep("items", i, "desc", v)} placeholder="What it is and how long." />
                 {realOutcomes.length > 0 && (
@@ -1097,7 +1122,7 @@ export default function SyllabusBuilder() {
             <Field label="What engagement looks like here" hint="optional, but it removes a lot of guesswork"><A rows={3} value={d.participation} onChange={(v) => set("participation", v)} placeholder="Merely showing up and sitting through the class is not participation. Asking questions during Q and A, contributing to project discussions, and showing up to team meetings all count." /></Field>
             <Field label="Late work and make-up"><A rows={3} value={d.late} onChange={(v) => set("late", v)} placeholder="All assignments except exams can be made up with a 30 percent late penalty. Exams cannot be made up except for documented emergencies. Reach out before the deadline, not after." /></Field>
 
-            <div className="mt-6 mb-2" style={{ color: C.navy, fontWeight: "bold", fontSize: 14 }}>Artificial Intelligence Policy</div>
+            <div className="mt-6 mb-2" style={{ color: UI.navy, fontWeight: "bold", fontSize: 14 }}>Artificial Intelligence Policy</div>
             <Note>UTM's AI policy, effective July 1, 2025, requires every syllabus to state your expectations for student AI use. This is not optional, so pick a tier below. The three tiers match the policy: unrestricted, mixed, and total prohibition.</Note>
             {Object.entries(AI_POLICIES).map(([k, v]) => (
               <label key={k} className="flex items-start gap-2 mb-2 text-sm" style={{ color: C.slate, cursor: "pointer" }}>
@@ -1131,11 +1156,11 @@ export default function SyllabusBuilder() {
             <H>University Policies</H>
             <Note>CTL maintains this language and checks it each term. Leave it checked and it stays current. If you edit it in Word after export, you own the accuracy of the edit.</Note>
             {Object.entries(LOCKED).map(([k, v]) => (
-              <div key={k} className="mb-3 p-3 rounded" style={{ background: "#fff", border: `1px solid ${C.line}` }}>
+              <div key={k} className="mb-3 p-3 rounded" style={{ background: UI.paper, border: `1px solid ${UI.line}` }}>
                 <label className="flex items-center gap-2" style={{ cursor: "pointer" }}>
                   <input type="checkbox" checked={d.inc[k]} onChange={(e) => set("inc", { ...d.inc, [k]: e.target.checked })} />
                   <Lock size={12} style={{ color: C.orange }} />
-                  <span style={{ color: C.navy, fontWeight: "bold", fontSize: 13.5 }}>{v.title}</span>
+                  <span style={{ color: UI.navy, fontWeight: "bold", fontSize: 13.5 }}>{v.title}</span>
                 </label>
                 <div style={{ fontSize: 12, color: C.slate, marginTop: 6, lineHeight: 1.5, maxHeight: 86, overflow: "auto", whiteSpace: "pre-wrap" }}>{v.text}</div>
               </div>
@@ -1175,11 +1200,11 @@ export default function SyllabusBuilder() {
               <Note>The built-in registrar-date table is currently available only for Fall 2026, so it will not be appended for this semester.</Note>
             )}
             {d.weeks.map((w, i) => (
-              <div key={i} className="p-3 mb-3 rounded" style={{ background: "#fff", border: `1px solid ${C.line}` }}>
+              <div key={i} className="p-3 mb-3 rounded" style={{ background: UI.paper, border: `1px solid ${UI.line}` }}>
                 <div className="flex gap-2 mb-2">
                   <div style={{ flex: 1 }}><T value={w.label} onChange={(v) => setDeep("weeks", i, "label", v)} placeholder={d.scheduleType === "modular" ? `Module ${i + 1}` : `Week ${i + 1}`} /></div>
                   <div style={{ flex: 2 }}><T value={w.dates} onChange={(v) => setDeep("weeks", i, "dates", v)} placeholder={d.scheduleType === "modular" ? "Module dates (optional)" : "August 24 to 28"} /></div>
-                  <button onClick={() => drop("weeks", i)} style={{ color: "#9AA5B5", cursor: "pointer" }}><Trash2 size={15} /></button>
+                  <button onClick={() => drop("weeks", i)} style={{ color: UI.muted, cursor: "pointer" }}><Trash2 size={15} /></button>
                 </div>
                 <div className="flex gap-2">
                   <div style={{ flex: 2 }}><A rows={3} value={w.topics} onChange={(v) => setDeep("weeks", i, "topics", v)} placeholder="Topic and readings" /></div>
@@ -1297,6 +1322,6 @@ export default function SyllabusBuilder() {
 
 /** Renders the orange-underlined heading used at the top of each editor section. */
 function H({ children }) {
-  return <div style={{ color: C.navy, fontWeight: "bold", fontSize: 17, marginBottom: 12,
+  return <div style={{ color: UI.navy, fontWeight: "bold", fontSize: 17, marginBottom: 12,
     borderBottom: `2px solid ${C.orange}`, paddingBottom: 6, display: "inline-block" }}>{children}</div>;
 }
