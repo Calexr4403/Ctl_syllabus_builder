@@ -304,6 +304,7 @@ export default function SyllabusBuilder() {
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [hasUnsavedChanges]);
   const [tab, setTab] = useState(0);
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [weekCount, setWeekCount] = useState("15");
   const [weekCountWarning, setWeekCountWarning] = useState(false);
   const frameRef = useRef(null);
@@ -315,17 +316,46 @@ export default function SyllabusBuilder() {
     setD((p) => { const a = [...p[k]]; a[i] = { ...a[i], [key]: v }; return { ...p, [k]: a }; });
   // Add or remove one item from a repeated syllabus section.
   const push = (k, obj) => setD((p) => ({ ...p, [k]: [...p[k], obj] }));
-     const drop = (k, i) => setD((p) => {
-       const next = { ...p, [k]: p[k].filter((_, j) => j !== i) };
-       if (k === "outcomes" && p.outcomes[i].trim()) {
-         const gone = p.outcomes.slice(0, i).filter((o) => o.trim()).length;
-         next.items = p.items.map((x) => ({
-           ...x,
-           slos: x.slos.filter((z) => z !== gone).map((z) => (z > gone ? z - 1 : z)),
-         }));
-       }
-       return next;
-     });
+  const entryHasContent = (entry) => typeof entry === "string"
+    ? entry.trim().length > 0
+    : Object.values(entry).some((value) => Array.isArray(value) ? value.length > 0 : String(value ?? "").trim().length > 0);
+
+  // Remove entry i from section k. Deleting an outcome also reindexes the
+  // assignment links that pointed at it, so no link is left dangling.
+  const applyDrop = (k, i) => setD((p) => {
+    const next = { ...p, [k]: p[k].filter((_, j) => j !== i) };
+    if (k === "outcomes" && p.outcomes[i].trim()) {
+      const gone = p.outcomes.slice(0, i).filter((o) => o.trim()).length;
+      next.items = p.items.map((x) => ({
+        ...x,
+        slos: x.slos.filter((z) => z !== gone).map((z) => (z > gone ? z - 1 : z)),
+      }));
+    }
+    return next;
+  });
+
+  const drop = (k, i) => {
+    if (entryHasContent(d[k][i])) {
+      setPendingDelete({ k, i });
+      return;
+    }
+    applyDrop(k, i);
+  };
+
+  const confirmDrop = () => {
+    if (!pendingDelete) return;
+    const { k, i } = pendingDelete;
+    applyDrop(k, i);
+    setPendingDelete(null);
+  };
+
+  useEffect(() => {
+    if (!pendingDelete) return undefined;
+    const closeOnEscape = (e) => { if (e.key === "Escape") setPendingDelete(null); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [pendingDelete]);
+
   const setLab = (k, v) => setD((p) => ({ ...p, lab: { ...p.lab, [k]: v } }));
 
   function calculateWeightTotal(items) {
@@ -611,6 +641,22 @@ export default function SyllabusBuilder() {
   return (
     <div style={{ fontFamily: "Cambria, Georgia, serif", background: C.wash, minHeight: "100vh" }}>
       <iframe ref={frameRef} title="print" style={{ position: "fixed", width: 0, height: 0, border: 0, left: -9999 }} />
+      {pendingDelete && (
+        <div role="presentation" onMouseDown={() => setPendingDelete(null)} style={{ position: "fixed", inset: 0, zIndex: 10,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(11,34,64,.38)" }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" onMouseDown={(e) => e.stopPropagation()}
+            style={{ width: "min(100%, 420px)", background: "#fff", borderRadius: 4, padding: 24, boxShadow: "0 12px 36px rgba(11,34,64,.24)" }}>
+            <div id="delete-dialog-title" style={{ color: C.navy, fontSize: 18, fontWeight: "bold", marginBottom: 8 }}>Delete this entry?</div>
+            <div style={{ color: C.slate, fontSize: 14, lineHeight: 1.5, marginBottom: 20 }}>
+              This {({ outcomes: "learning outcome", items: "assignment", weeks: "schedule entry" }[pendingDelete.k] || "entry")} contains information. Are you sure you want to delete it?
+            </div>
+            <div className="flex justify-end gap-2">
+              <Btn onClick={() => setPendingDelete(null)}>Cancel</Btn>
+              <Btn onClick={confirmDrop} primary>Delete</Btn>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* masthead */}
       <div style={{ background: C.navy, borderBottom: `4px solid ${C.orange}` }} className="px-5 py-3">
