@@ -192,7 +192,7 @@ const blank = {
   description: "", welcome: "",
   showPrimer: true, outcomes: [""],
   texts: "", costNote: "", tech: "",
-  items: [{ name: "", weight: "", due: "", desc: "", slos: [] }],
+  items: [{ name: "", weight: "", points: "", due: "", desc: "", slos: [] }],
   scale: "A 90 to 100  ·  B 80 to 89  ·  C 70 to 79  ·  D 60 to 69  ·  F below 60",
   attendance: "", late: "", participation: "",
   aiTier: "mixed", aiCustom: "", profNote: "", customPolicies: [],
@@ -769,7 +769,8 @@ export default function SyllabusBuilder() {
                 <div className="flex gap-2 mb-2">
                   <div style={{ flex: 3 }}><T value={x.name} onChange={(v) => setDeep("items", i, "name", v)} placeholder="Final paper" /></div>
                   <div style={{ flex: 1 }}><T mono value={x.weight} onChange={(v) => setDeep("items", i, "weight", v)} placeholder="%" /></div>
-                  <div style={{ flex: 1 }}><T value={x.due} onChange={(v) => setDeep("items", i, "due", v)} placeholder="Due date"/* added a due date text input that doesn't show up unless needed */ /></div>
+                  <div style={{ flex: 1 }}><T mono value={x.points} onChange={(v) => setDeep("items", i, "points", v)} placeholder="pts" /></div>
+                  <div style={{ flex: 1 }}><T value={x.due} onChange={(v) => setDeep("items", i, "due", v)} placeholder="Due date" /></div>
                   <button onClick={() => drop("items", i)} style={{ color: "#9AA5B5", cursor: "pointer" }}><Trash2 size={15} /></button>
                 </div>
                 <A rows={2} value={x.desc} onChange={(v) => setDeep("items", i, "desc", v)} placeholder="What it is and how long." />
@@ -792,7 +793,7 @@ export default function SyllabusBuilder() {
                 )}
               </div>
             ))}
-            <Btn onClick={() => push("items", { name: "", weight: "", due: "", desc: "", slos: [] })} icon={Plus}>Add assignment</Btn>
+            <Btn onClick={() => push("items", { name: "", weight: "", points: "", due: "", desc: "", slos: [] })} icon={Plus}>Add assignment</Btn>
             {unmapped.length > 0 && (
               <div className="mt-4 p-3 rounded flex gap-2" style={{ background: "#FEF6E7", color: C.warn, fontSize: 13 }}>
                 <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 2 }} />
