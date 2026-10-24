@@ -924,8 +924,9 @@ export default function SyllabusBuilder() {
               </div>
             ))}
             <div className="flex gap-2 flex-wrap">
+
               <Btn onClick={() => push("weeks", { label: `${d.scheduleType === "modular" ? "Module" : "Week"} ${d.weeks.length + 1}`, dates: "", topics: "", due: "" })} icon={Plus}>Add {d.scheduleType === "modular" ? "module" : "week"}</Btn>
-              {d.scheduleType !== "modular" && <Btn onClick={() => setD((p) => ({ ...p, weeks: Array.from({ length: 15 }, (_, i) => p.weeks[i] || { label: `Week ${i + 1}`, dates: "", topics: "", due: "" }) }))}>Build 15 weeks</Btn>}
+              {d.scheduleType !== "modular" && <Btn onClick={() => setD((p) => ({ ...p, weeks: Array.from({ length: 15 }, (_, i) => p.weeks[i] || { label: `Week ${i + 1}`, dates: "", topics: "", due: "" }) }))}>15 Week Template</Btn>}
             </div>
           </>)}
 
