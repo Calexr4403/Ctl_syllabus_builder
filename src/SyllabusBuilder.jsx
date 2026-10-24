@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   BookOpen, User, MessageSquare, Target, Library, Scale, Gavel,
   ShieldCheck, CalendarDays, FileDown, Check, AlertTriangle, Plus, Trash2,
-  Save, Upload, Printer, Lock, Info, ChevronRight, Maximize2, Minimize2
+  Save, Upload, Printer, Lock, Info, ChevronRight, Maximize2, Minimize2, FlaskConical
 } from "lucide-react";
 
 /* ============================================================
@@ -483,6 +483,23 @@ export default function SyllabusBuilder() {
   const lateText = [d.late, ...d.lateAdditional.map((policy) => policy.text)]
     .filter((text) => text.trim()).join("\n\n");
 
+  // Week numbers (1-based) whose topics field is empty. Drives both the
+  // readiness check below and the pre-export confirm.
+  const missingWeeks = d.weeks
+    .map((w, i) => ({ w, n: i + 1 }))
+    .filter(({ w }) => !w.topics?.trim())
+    .map(({ n }) => n);
+
+  // A full UTM semester is 15 weeks. The schedule is "complete" when there are
+  // at least 15 weeks and each of the first 15 has its topics filled in.
+  const FULL_TERM = 15;
+  const blankInTerm = missingWeeks.filter((n) => n <= FULL_TERM);
+  const fifteenWeeksReady = d.weeks.length >= FULL_TERM && blankInTerm.length === 0;
+  const fifteenWeeksLabel = fifteenWeeksReady
+    ? `All ${FULL_TERM} weeks are filled in`
+    : d.weeks.length < FULL_TERM
+      ? `Schedule has ${d.weeks.length} of ${FULL_TERM} weeks`
+      : `Week${blankInTerm.length > 1 ? "s" : ""} ${blankInTerm.join(", ")} missing topics (all ${FULL_TERM} weeks need topics)`;
 
   const selectedMeetingPattern = MEETING_PATTERNS.find(
     (pattern) => pattern.value === d.meetingPattern
@@ -515,6 +532,11 @@ export default function SyllabusBuilder() {
     ["Academic integrity included", d.inc.integrity],
     ["Crisis resources included", d.inc.crisis],
     ["Schedule has at least one entry", d.weeks.some((w) => hasText(w.topics) || hasText(w.dates))],
+    [missingWeeks.length === 0
+      ? "Every week in the schedule has topics"
+      : `Topics missing for week${missingWeeks.length > 1 ? "s" : ""} ${missingWeeks.join(", ")}`,
+      missingWeeks.length === 0],
+    [fifteenWeeksLabel, fifteenWeeksReady],
     ...(d.hasLab ? [
       ["Lab meeting time and location", hasText(d.lab.meeting) && hasText(d.lab.location)],
       ["How the lab counts toward the course grade", hasText(d.lab.gradeNote)],
@@ -734,32 +756,17 @@ export default function SyllabusBuilder() {
     doc.title = pdfFilename();
     setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); }, 250);
   };
-  const saveJson = () => dl(new Blob([JSON.stringify(d, null, 2)], { type: "application/json" }), fname("json"));
-  const loadJson = (e) => {
-    const f = e.target.files?.[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const saved = JSON.parse(r.result);
-        const migrated = { ...blank, ...saved };
 
-        // Older saved files stored the full meeting schedule in `meeting`.
-        if (!saved.meetingPattern && saved.meeting) migrated.meetingPattern = "custom";
-
-        // Older saved files may use values such as "Fall 2026".
-        if (!SEMESTERS.includes(migrated.term)) {
-          const semester = SEMESTERS.find((item) =>
-            String(migrated.term || "").toLowerCase().startsWith(item.toLowerCase())
-          );
-          if (semester) migrated.term = semester;
-        }
-
-        setD(migrated);
-      } catch {
-        alert("That file could not be read as a saved syllabus.");
-      }
-    };
-    r.readAsText(f); e.target.value = "";
+  // Warn about weeks with no topics before exporting; run the export only if
+  // the schedule is complete or the user chooses to proceed anyway.
+  const confirmThenExport = (exportFn) => {
+    if (missingWeeks.length > 0) {
+      const ok = window.confirm(
+        `Your schedule is missing topics for week${missingWeeks.length > 1 ? "s" : ""} ${missingWeeks.join(", ")}. Export anyway?`
+      );
+      if (!ok) return;
+    }
+    exportFn();
   };
 
   /* ---------- sections ---------- */
@@ -1353,8 +1360,8 @@ export default function SyllabusBuilder() {
             </div>
             <Note>Nothing here is stored anywhere. Closing this tab clears it. Export your syllabus to Word or PDF before closing.</Note>
             <div className="flex flex-wrap gap-2 mb-4">
-              <Btn onClick={exportWord} icon={FileDown} primary>Export to Word</Btn>
-              <Btn onClick={exportPdf} icon={Printer} primary>Export to PDF</Btn>
+              <Btn onClick={() => confirmThenExport(exportWord)} icon={FileDown} primary>Export to Word</Btn>
+              <Btn onClick={() => confirmThenExport(exportPdf)} icon={Printer} primary>Export to PDF</Btn>
               <Btn onClick={clearForm} icon={Trash2}>Clear form</Btn>
             </div>
             <div style={{ fontSize: 12, color: C.slate, marginTop: 14, lineHeight: 1.55 }}>
