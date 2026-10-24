@@ -383,6 +383,7 @@ export default function SyllabusBuilder() {
   const [weekCountWarning, setWeekCountWarning] = useState(false);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const frameRef = useRef(null);
+  const previewRef = useRef(null);
 
   useEffect(() => {
     if (!previewFullscreen) return;
@@ -391,10 +392,47 @@ export default function SyllabusBuilder() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [previewFullscreen]);
 
-  const set = (k, v) => setD((p) => ({ ...p, [k]: v }));
+  // Which syllabus heading each editor tab and each repeated section maps to.
+  const SECTION_FOR_TAB = [
+    "COURSE INFORMATION", "COURSE INFORMATION", "WELCOME TO THIS COURSE",
+    "STUDENT LEARNING OUTCOMES", "REQUIRED MATERIALS", "ASSESSMENT AND GRADING",
+    "COURSE POLICIES", "UNIVERSITY POLICIES AND STUDENT SUPPORT", "COURSE SCHEDULE",
+    "LABORATORY COMPONENT",
+  ];
+  const SECTION_FOR_ITEM = {
+    weeks: "COURSE SCHEDULE",
+    items: "ASSESSMENT AND GRADING",
+    outcomes: "STUDENT LEARNING OUTCOMES",
+  };
+
+  // Scroll the preview to the heading for the section being edited, so the user
+  // sees the change without hunting for it. Works in both normal and fullscreen
+  // mode, where the scrolling element is the wrapper around the page.
+  const scrollPreviewTo = (sectionName) => {
+    const paper = previewRef.current;
+    if (!sectionName || !paper) return;
+    const heading = [...paper.querySelectorAll("h2, h3")]
+      .find((h) => h.innerText.trim() === sectionName);
+    if (!heading) return;
+    let scroller = paper;
+    while (scroller && scroller !== document.body && scroller.scrollHeight <= scroller.clientHeight + 1) {
+      scroller = scroller.parentElement;
+    }
+    if (!scroller || scroller === document.body) return;
+    const top = heading.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+      + scroller.scrollTop - 60;
+    scroller.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  };
+
+  const set = (k, v) => {
+    setD((p) => ({ ...p, [k]: v }));
+    setTimeout(() => scrollPreviewTo(SECTION_FOR_TAB[tab]), 0);
+  };
   // Update one property inside a repeated array item, such as an assignment or week.
-  const setDeep = (k, i, key, v) =>
+  const setDeep = (k, i, key, v) => {
     setD((p) => { const a = [...p[k]]; a[i] = { ...a[i], [key]: v }; return { ...p, [k]: a }; });
+    setTimeout(() => scrollPreviewTo(SECTION_FOR_ITEM[k]), 0);
+  };
   // Add or remove one item from a repeated syllabus section.
   const push = (k, obj) => setD((p) => ({ ...p, [k]: [...p[k], obj] }));
   const entryHasContent = (entry) => typeof entry === "string"
@@ -1397,7 +1435,7 @@ export default function SyllabusBuilder() {
           <div style={previewFullscreen
             ? { flex: 1, minHeight: 0, overflow: "auto", padding: "24px clamp(16px, 5vw, 72px)" }
             : {}}>
-            <div style={{
+            <div ref={previewRef} style={{
               background: "#fff", border: `1px solid ${C.line}`, borderRadius: 3, boxSizing: "border-box",
               width: "8.5in", maxWidth: "100%", padding: "0.8in",
               maxHeight: previewFullscreen ? "none" : "calc(100vh - 130px)", overflow: previewFullscreen ? "visible" : "auto",
