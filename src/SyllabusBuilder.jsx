@@ -523,6 +523,12 @@ export default function SyllabusBuilder() {
   const fname = (ext) => `${sanitizePart(d.code) || "Syllabus"}_${sanitizePart(d.term) || "Term"}.${ext}`;
 
   const exportWord = () => dl(new Blob(["\ufeff" + fullHtml()], { type: "application/msword" }), fname("doc"));
+  const clearForm = () => {
+    if (window.confirm("Clear the entire syllabus and start over? This cannot be undone. Export your syllabus first if you want to keep a copy.")) {
+      setD(blank);
+      setTab(0);
+    }
+  };
   const exportPdf = () => {
     const f = frameRef.current; if (!f) return;
     const doc = f.contentWindow.document;
@@ -970,6 +976,7 @@ export default function SyllabusBuilder() {
             <div className="flex flex-wrap gap-2 mb-4">
               <Btn onClick={exportWord} icon={FileDown} primary>Export to Word</Btn>
               <Btn onClick={exportPdf} icon={Printer} primary>Export to PDF</Btn>
+              <Btn onClick={clearForm} icon={Trash2}>Clear form</Btn>
             </div>
             <div style={{ fontSize: 12, color: C.slate, marginTop: 14, lineHeight: 1.55 }}>
               Word opens the export as a normal document you can keep editing. PDF opens your browser's print dialog, where you choose Save as PDF. Both come out in Cambria with the UT Martin banner and real Word heading styles, so a screen reader can navigate it.
