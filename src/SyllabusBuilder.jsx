@@ -415,6 +415,18 @@ const sanitizePart = (s) => {
   return RESERVED.test(out) ? `${out}_` : out;
 };
 
+/**
+ * Normalizes a course code string to match the course catalog JSON keys.
+ * Example: "csci 325", "CSCI-325", or "  Csci325 " → "CSCI325"
+ */
+const normalizeCourseKey = (str) => {
+  if (!str) return "";
+  return String(str)
+    .replace(/[^A-Za-z0-9]/g, "") // Strip spaces, hyphens, and punctuation
+    .toUpperCase();               // Force to uppercase to match JSON keys
+};
+
+
 /** Renders an uppercase field label and an optional hint. */
 const Lbl = ({ children, hint }) => (
   <div className="mb-1">
@@ -463,6 +475,78 @@ const Note = ({ children }) => (
  */
 export default function SyllabusBuilder() {
   const [d, setD] = useState(createBlank);
+
+  const [catalog, setCatalog] = useState({});
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(null);
+
+  useEffect(() => {
+    fetch("/utm_course_catalog_26_27.json")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load catalog asset: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setCatalog(data);
+        setCatalogLoading(false);
+      })
+      .catch((error) => {
+        console.error("Course catalog fetch error:", error);
+        setCatalogError(error.message);
+        setCatalogLoading(false);
+      });
+  }, []); 
+
+  // Tracks the last normalized catalog key that was automatically populated
+  const [lastAutofilledKey, setLastAutofilledKey] = useState("");
+
+  // Handles course code changes, lookups, and clean formatting safely
+  const handleCourseCodeChange = (inputValue) => {
+    const cleanedKey = normalizeCourseKey(inputValue);
+
+    if (catalog && catalog[cleanedKey]) {
+      const course = catalog[cleanedKey];
+
+      // 1. Format helper: Enforce standard "POSC 322" space layout rules
+      let formattedCode = inputValue;
+      const match = cleanedKey.match(/^([A-Z]{4})(\d{3,4}.*)$/);
+      if (match) {
+        formattedCode = `${match[1]} ${match[2]}`; // Constructs clean "POSC 322" layout
+      }
+
+      setD((prev) => {
+        const isDefaultCredits = prev.credits === "3";
+
+        // Safety switch: Drops guards temporarily if changing courses entirely
+        const isSwitchingCourse = lastAutofilledKey && lastAutofilledKey !== cleanedKey;
+
+        return {
+          ...prev,
+          code: formattedCode,
+
+          // Overwrite if field is empty, matching baseline templates, or switching courses completely
+          title: (!prev.title.trim() || isSwitchingCourse) ? (course.courseTitle || "") : prev.title,
+          description: (!prev.description.trim() || isSwitchingCourse) ? (course.description || "") : prev.description,
+          prereq: (!prev.prereq.trim() || isSwitchingCourse) ? (course.prerequisites || "") : prev.prereq,
+          credits: (!prev.credits.trim() || isDefaultCredits || isSwitchingCourse) ? (course.creditHours || "3") : prev.credits
+          // Department is safely omitted here so the manual dropdown menu remains completely in control
+        };
+      });
+
+      setLastAutofilledKey(cleanedKey);
+
+    } else {
+      // If no catalog entry is found yet, update the text box as they type normally
+      setD((prev) => ({ ...prev, code: inputValue }));
+    }
+
+    // Keep your existing auto-scroll preview window functional
+    setTimeout(() => scrollPreviewTo(SECTION_FOR_TAB[tab]), 0);
+  };
+
+
   // adds a warning before the user leaves the page changes will not be saved.
   const hasUnsavedChanges = JSON.stringify(d) !== JSON.stringify(blank);
 
@@ -1035,8 +1119,35 @@ export default function SyllabusBuilder() {
           {tab === 0 && (<>
             <H>Course</H>
             <div className="flex gap-3 flex-wrap">
-              <div style={{ flex: "1 1 150px" }}><Field label="Course code" hint="POSC 322"><T value={d.code} onChange={(v) => set("code", v)} placeholder="POSC 322" /></Field></div>
-              <div style={{ flex: "2 1 240px" }}><Field label="Course title"><T value={d.title} onChange={(v) => set("title", v)} placeholder="American Foreign Policy" /></Field></div>
+              <div style={{ flex: "1 1 150px" }}>
+                <Field label="Course code" hint="POSC 322">
+                  <T
+                    value={d.code}
+                    onChange={handleCourseCodeChange} // Connected to your safe lookup handler
+                    placeholder="POSC 322"
+                  />
+
+                  {/* 🌟 Autofill Match Indicator Banner */}
+                  {d.code && catalog && catalog[normalizeCourseKey(d.code)] && (
+                    <div
+                      className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded text-xs font-semibold"
+                      style={{
+                        background: UI.goodBg || "#E8F5E9",
+                        color: UI.good || "#1E7A46",
+                        border: `1px solid ${UI.line || "#D8DEE7"}`
+                      }}
+                    >
+                      <Check size={12} />
+                      Matched catalog data loaded!
+                    </div>
+                  )}
+                </Field>
+              </div>
+              <div style={{ flex: "2 1 240px" }}>
+                <Field label="Course title">
+                  <T value={d.title} onChange={(v) => set("title", v)} placeholder="American Foreign Policy" />
+                </Field>
+              </div>
             </div>
             <div className="flex gap-3 flex-wrap">
               <div style={{ flex: "1 1 130px" }}><Field label="CRN" hint="the 5-digit registration number"><T value={d.crn} onChange={(v) => set("crn", v)} placeholder="12345" /></Field></div>
