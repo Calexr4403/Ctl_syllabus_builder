@@ -1127,7 +1127,7 @@ export default function SyllabusBuilder() {
                     placeholder="POSC 322"
                   />
 
-                  {/* 🌟 Autofill Match Indicator Banner */}
+                  {/* Autofill Match Indicator Banner */}
                   {d.code && catalog && catalog[normalizeCourseKey(d.code)] && (
                     <div
                       className="flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded text-xs font-semibold"
